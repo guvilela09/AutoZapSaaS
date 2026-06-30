@@ -1,0 +1,91 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: autozap-sqlserver
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=AutoZap@2024!
+      - MSSQL_PID=Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    networks:
+      - autozap-network
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: autozap-rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=AutoZap@2024!
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - autozap-network
+
+  evolution-api:
+    image: atendai/evolution-api:latest
+    container_name: autozap-evolution
+    depends_on:
+      - rabbitmq
+    environment:
+      - SERVER_TYPE=http
+      - SERVER_PORT=8080
+      - AUTHENTICATION_API_KEY=your-evolution-api-key-here
+      - DATABASE_ENABLED=true
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=postgresql://postgres:AutoZap@2024!@postgres:5432/evolution
+      - RABBITMQ_ENABLED=true
+      - RABBITMQ_URI=amqp://admin:AutoZap@2024!@rabbitmq:5672
+      - WEBSOCKET_ENABLED=true
+    ports:
+      - "8080:8080"
+    volumes:
+      - evolution_instances:/evolution/instances
+    networks:
+      - autozap-network
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: autozap-postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=AutoZap@2024!
+      - POSTGRES_DB=evolution
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - autozap-network
+
+  api:
+    image: autozap-saas-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: autozap-api
+    depends_on:
+      - sqlserver
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=AutoZapSaaS_Db;User Id=sa;Password=AutoZap@2024!;TrustServerCertificate=True;
+      - Jwt__Secret=AutoZapSaaS_SuperSecret_Key_2024_Min_32_Chars!
+      - EvolutionApi__BaseUrl=http://evolution-api:8080
+      - EvolutionApi__ApiKey=your-evolution-api-key-here
+    ports:
+      - "5000:80"
+      - "5001:443"
+    networks:
+      - autozap-network
+
+volumes:
+  sqlserver_data:
+  postgres_data:
+  evolution_instances:
+
+networks:
+  autozap-network:
+    driver: bridge

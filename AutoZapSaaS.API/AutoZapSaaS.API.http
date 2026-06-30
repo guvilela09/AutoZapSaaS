@@ -1,0 +1,125 @@
+@baseUrl = https://localhost:7185
+@token = {{loginToken}}
+
+### 1. Registrar novo Tenant (conta)
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "name": "Minha Empresa",
+  "email": "admin@minhaempresa.com",
+  "document": "12345678000199",
+  "adminEmail": "admin@minhaempresa.com",
+  "adminPassword": "Senha@123"
+}
+
+### 2. Fazer login
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@minhaempresa.com",
+  "password": "Senha@123"
+}
+
+### 3. Criar Instancia WhatsApp
+POST {{baseUrl}}/api/instances
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "WhatsApp Vendas",
+  "sessionName": "vendas01",
+  "token": "meu-token-secreto"
+}
+
+### 4. Listar Instancias
+GET {{baseUrl}}/api/instances
+Authorization: Bearer {{token}}
+
+### 5. Conectar Instancia (gera QR Code)
+POST {{baseUrl}}/api/instances/{{instanceId}}/connect
+Authorization: Bearer {{token}}
+
+### 6. Ver QR Code
+GET {{baseUrl}}/api/instances/{{instanceId}}/qrcode
+Authorization: Bearer {{token}}
+
+### 7. Ver Status da Conexão
+GET {{baseUrl}}/api/instances/{{instanceId}}/status
+Authorization: Bearer {{token}}
+
+### 8. Criar Template de Mensagem
+POST {{baseUrl}}/api/templates
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "Pagamento Confirmado",
+  "eventType": "PaymentConfirmed",
+  "body": "Olá {{nome}}! Seu pagamento foi confirmado com sucesso. {{detalhe}}"
+}
+
+### 9. Listar Templates
+GET {{baseUrl}}/api/templates
+Authorization: Bearer {{token}}
+
+### 10. Enviar Mensagem
+POST {{baseUrl}}/api/whatsapp/send
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "instanceId": "00000000-0000-0000-0000-000000000000",
+  "phoneNumber": "5511999999999",
+  "message": "Olá! Esta é uma mensagem de teste do AutoZap."
+}
+
+### 11. Ver Histórico de Mensagens
+GET {{baseUrl}}/api/whatsapp/messages
+Authorization: Bearer {{token}}
+
+### 12. Listar Clientes
+GET {{baseUrl}}/api/customers
+Authorization: Bearer {{token}}
+
+### 13. Webhook Kiwify
+POST {{baseUrl}}/api/webhooks/kiwify
+Content-Type: application/json
+X-Tenant-Id: {{tenantId}}
+
+{
+  "customer": {
+    "name": "João Silva",
+    "phone": "5511999999999",
+    "email": "joao@email.com"
+  },
+  "event": "payment_confirmed"
+}
+
+### 14. Webhook Hotmart
+POST {{baseUrl}}/api/webhooks/hotmart
+Content-Type: application/json
+
+{
+  "data": {
+    "buyer_name": "Maria Souza",
+    "buyer_phone": "5511988888888",
+    "buyer_email": "maria@email.com",
+    "product_name": "Curso Premium",
+    "status": "approved"
+  },
+  "event": "purchase_approved"
+}
+
+### 15. Webhook Nuvemshop
+POST {{baseUrl}}/api/webhooks/nuvemshop
+Content-Type: application/json
+
+{
+  "customer_name": "Pedro Santos",
+  "customer_phone": "5511977777777",
+  "customer_email": "pedro@email.com",
+  "total": 199.90,
+  "order_number": "12345"
+}
