@@ -1,6 +1,7 @@
 using System.Text;
 using AutoZapSaaS.API.Common;
 using AutoZapSaaS.Application;
+using AutoZapSaaS.Application.Common.Interfaces;
 using AutoZapSaaS.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -46,7 +47,23 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ITenantContext, TenantContext>();
 
 var jwtSettings = builder.Configuration.GetSection("Jwt");
-var secret = jwtSettings["Secret"] ?? "AutoZapSaaS_SuperSecret_Key_2024_Min_32_Chars!";
+
+// Sem fallback: um segredo default em produção significa que qualquer um que leia o
+// repositório consegue forjar um JWT de qualquer tenant. Melhor não subir.
+var secret = jwtSettings["Secret"];
+if (string.IsNullOrWhiteSpace(secret) || secret.Length < 32)
+{
+    throw new InvalidOperationException(
+        "Jwt:Secret não configurado ou menor que 32 caracteres. " +
+        "Defina a variável de ambiente Jwt__Secret (veja .env.example).");
+}
+
+if (string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("DefaultConnection")))
+{
+    throw new InvalidOperationException(
+        "ConnectionStrings:DefaultConnection não configurada. " +
+        "Defina a variável de ambiente ConnectionStrings__DefaultConnection.");
+}
 
 builder.Services.AddAuthentication(options =>
 {
