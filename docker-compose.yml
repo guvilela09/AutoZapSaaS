@@ -4,7 +4,7 @@ services:
     container_name: autozap-sqlserver
     environment:
       - ACCEPT_EULA=Y
-      - MSSQL_SA_PASSWORD=AutoZap@2024!
+      - MSSQL_SA_PASSWORD=${SQL_SA_PASSWORD:?defina SQL_SA_PASSWORD no .env}
       - MSSQL_PID=Developer
     ports:
       - "1433:1433"
@@ -17,8 +17,8 @@ services:
     image: rabbitmq:3-management-alpine
     container_name: autozap-rabbitmq
     environment:
-      - RABBITMQ_DEFAULT_USER=admin
-      - RABBITMQ_DEFAULT_PASS=AutoZap@2024!
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:?defina RABBITMQ_USER no .env}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:?defina RABBITMQ_PASSWORD no .env}
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -26,22 +26,27 @@ services:
       - autozap-network
 
   evolution-api:
-    image: atendai/evolution-api:latest
+    # Repositorio oficial atual. O antigo atendai/evolution-api saiu do ar.
+    # Versao fixada de proposito: 'latest' ja quebrou o ambiente uma vez.
+    image: evoapicloud/evolution-api:v2.3.7
     container_name: autozap-evolution
     depends_on:
       - rabbitmq
+      - postgres
     environment:
       - SERVER_TYPE=http
       - SERVER_PORT=8080
-      - AUTHENTICATION_API_KEY=your-evolution-api-key-here
+      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY:?defina EVOLUTION_API_KEY no .env}
       - DATABASE_ENABLED=true
       - DATABASE_PROVIDER=postgresql
-      - DATABASE_CONNECTION_URI=postgresql://postgres:AutoZap@2024!@postgres:5432/evolution
+      - DATABASE_CONNECTION_URI=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/evolution
       - RABBITMQ_ENABLED=true
-      - RABBITMQ_URI=amqp://admin:AutoZap@2024!@rabbitmq:5672
+      - RABBITMQ_URI=amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
       - WEBSOCKET_ENABLED=true
     ports:
-      - "8080:8080"
+      # 8081 no host: a 8080 pode ter outra Evolution rodando fora deste compose.
+      # Esta instancia e exclusiva do AutoZap, que cria e remove sessoes sozinho.
+      - "8081:8080"
     volumes:
       - evolution_instances:/evolution/instances
     networks:
@@ -52,10 +57,12 @@ services:
     container_name: autozap-postgres
     environment:
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=AutoZap@2024!
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
       - POSTGRES_DB=evolution
     ports:
-      - "5432:5432"
+      # 5433 no host para nao colidir com um Postgres instalado na maquina.
+      # Dentro da rede do compose os servicos seguem falando na 5432.
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -66,18 +73,21 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    # A imagem e local: sem isso o compose tenta puxar do Docker Hub e falha.
+    pull_policy: build
     container_name: autozap-api
     depends_on:
       - sqlserver
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=AutoZapSaaS_Db;User Id=sa;Password=AutoZap@2024!;TrustServerCertificate=True;
-      - Jwt__Secret=AutoZapSaaS_SuperSecret_Key_2024_Min_32_Chars!
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=AutoZapSaaS_Db;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;
+      - Jwt__Secret=${JWT_SECRET:?defina JWT_SECRET no .env}
+      - App__PublicBaseUrl=${PUBLIC_BASE_URL:-http://localhost:5000}
       - EvolutionApi__BaseUrl=http://evolution-api:8080
-      - EvolutionApi__ApiKey=your-evolution-api-key-here
+      - EvolutionApi__ApiKey=${EVOLUTION_API_KEY}
     ports:
-      - "5000:80"
-      - "5001:443"
+      # O runtime .NET 8+ escuta na 8080 dentro do container, nao na 80.
+      - "5000:8080"
     networks:
       - autozap-network
 

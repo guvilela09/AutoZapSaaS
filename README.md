@@ -125,31 +125,73 @@ dotnet run
 | PUT | `/api/templates/{id}` | Atualizar template |
 | DELETE | `/api/templates/{id}` | Remover template |
 
-### Webhooks (Publico)
+### Integracoes de Webhook (Autenticado)
 | Metodo | Rota | Descricao |
 |--------|------|-----------|
-| POST | `/api/webhooks/kiwify` | Receber webhook Kiwify |
-| POST | `/api/webhooks/hotmart` | Receber webhook Hotmart |
-| POST | `/api/webhooks/nuvemshop` | Receber webhook Nuvemshop |
-| POST | `/api/webhooks/receive` | Webhook generico |
+| POST | `/api/webhook-integrations` | Criar integracao (retorna a URL de webhook) |
+| GET | `/api/webhook-integrations` | Listar integracoes |
+| POST | `/api/webhook-integrations/{id}/rotate-token` | Rotacionar o token da URL |
+| PUT | `/api/webhook-integrations/{id}/secret` | Atualizar o secret de assinatura |
+| DELETE | `/api/webhook-integrations/{id}` | Remover integracao |
+
+### Webhooks (Publico, autenticado por token + assinatura)
+| Metodo | Rota | Descricao |
+|--------|------|-----------|
+| POST | `/api/webhooks/kiwify/{token}` | Receber webhook Kiwify |
+| POST | `/api/webhooks/hotmart/{token}` | Receber webhook Hotmart |
+| POST | `/api/webhooks/nuvemshop/{token}` | Receber webhook Nuvemshop |
+
+O `{token}` identifica o tenant e e gerado ao criar a integracao. Alem dele, a
+requisicao precisa trazer a assinatura da plataforma, validada contra o secret do tenant:
+
+| Plataforma | Onde vem a assinatura | Algoritmo |
+|------------|----------------------|-----------|
+| Kiwify | query string `?signature=` | HMAC-SHA1 do corpo, hex |
+| Nuvemshop | header `x-linkedstore-hmac-sha256` | HMAC-SHA256 do corpo, hex |
+| Hotmart | header `X-HOTMART-HOTTOK` | token estatico |
+
+Token invalido ou assinatura invalida respondem `401` sem distincao entre os dois casos.
 
 ## Variaveis de Ambiente
 
+Nenhum segredo fica versionado. A aplicacao **nao sobe** sem `Jwt__Secret` (min 32 chars)
+e `ConnectionStrings__DefaultConnection` — falha no startup com mensagem explicita.
+
 | Variavel | Descricao | Padrao |
 |----------|-----------|--------|
-| `ConnectionStrings__DefaultConnection` | String de conexao SQL Server | - |
-| `Jwt__Secret` | Chave secreta JWT (min 32 chars) | - |
+| `ConnectionStrings__DefaultConnection` | String de conexao SQL Server | obrigatorio |
+| `Jwt__Secret` | Chave secreta JWT (min 32 chars) | obrigatorio |
+| `App__PublicBaseUrl` | URL publica, usada para montar as URLs de webhook | - |
 | `EvolutionApi__BaseUrl` | URL da Evolution API | `http://localhost:8080` |
 | `EvolutionApi__ApiKey` | API Key da Evolution | - |
 
+Para Docker, copie `.env.example` para `.env` e preencha. Para desenvolvimento local:
+
+```bash
+cd AutoZapSaaS.API
+dotnet user-secrets set "Jwt:Secret" "$(openssl rand -base64 48)"
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=...;"
+```
+
+## Isolamento Multi-Tenant
+
+Toda entidade que implementa `ITenantEntity` recebe um **Global Query Filter** no
+`ApplicationDbContext`, amarrado ao tenant da requisicao (claim `tenant_id` do JWT).
+Consultas nao conseguem atravessar a fronteira do tenant nem quando recebem o `Id` de
+um recurso alheio. Atravessar exige um `IgnoreQueryFilters()` explicito — usado apenas
+no login, no cadastro e na resolucao de token de webhook.
+
+Os testes em `AutoZapSaaS.Tests/TenantIsolationTests.cs` exercitam esse ataque.
+
 ## Fluxo de Webhook
 
-1. Plataforma externa (Kiwify/Hotmart/Nuvemshop) envia webhook `POST /api/webhooks/{plataforma}`
-2. Sistema extrai nome e telefone do payload
-3. Cria ou atualiza cliente no banco de dados
-4. Busca template de mensagem ativo para o tipo de evento
-5. Envia mensagem WhatsApp via Evolution API
-6. Registra log do envio
+1. O tenant cria uma integracao e recebe a URL `POST /api/webhooks/{plataforma}/{token}`
+2. Cadastra essa URL e o secret na plataforma de vendas
+3. A plataforma envia o webhook assinado
+4. Sistema resolve o tenant pelo token e **valida a assinatura HMAC sobre o corpo cru**
+5. So entao a requisicao ganha um tenant e o processamento comeca
+6. Extrai nome e telefone, cria/atualiza cliente, busca template ativo
+7. Envia mensagem WhatsApp via Evolution API e registra o log
 
 ## Estrutura de Templates
 
