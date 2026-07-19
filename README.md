@@ -8,9 +8,27 @@ Plataforma SaaS de automação de WhatsApp com integração multi-plataforma (Ki
 AutoZapSaaS/
 ├── AutoZapSaaS.Domain/       # Entidades, Enums, Regras de Negócio
 ├── AutoZapSaaS.Application/  # Casos de Uso, DTOs, Validators, Interfaces
-├── AutoZapSaaS.Infrastructure/ # EF Core, SQL Server, Evolution API Client
-└── AutoZapSaaS.API/          # Controllers REST, Autenticação JWT, Swagger
+├── AutoZapSaaS.Infrastructure/ # EF Core, SQL Server, Evolution API, Asaas
+├── AutoZapSaaS.API/          # Controllers REST, Autenticação JWT, Swagger
+├── AutoZapSaaS.Web/          # Painel do lojista (Razor Pages)
+└── AutoZapSaaS.Tests/        # Testes de isolamento, cobrança e integrações
 ```
+
+O painel consome a API por HTTP, como qualquer outro cliente: a API continua
+sendo o produto e pode ser publicada sozinha.
+
+## Planos
+
+| Plano | Preço | Números de WhatsApp | Mensagens/mês |
+|-------|-------|---------------------|---------------|
+| Free | Grátis | 1 | 100 |
+| Pro | R$ 97/mês | 3 | 5.000 |
+| Business | R$ 297/mês | 10 | 50.000 |
+
+Os limites ficam em código (`PlanCatalog`), não em tabela: um banco sem seed
+liberaria acesso ilimitado. Cobrança recorrente pelo Asaas (Pix, boleto e cartão).
+Estourar o limite responde **402**, com o plano sugerido no corpo — não 400, que
+culparia o pedido do lojista.
 
 ## Funcionalidades
 

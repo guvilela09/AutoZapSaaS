@@ -1,0 +1,53 @@
+@{
+    var autenticado = User.Identity?.IsAuthenticated == true;
+    var pagina = ViewContext.RouteData.Values["page"]?.ToString() ?? "";
+    string Ativo(string rota) => pagina.Equals(rota, StringComparison.OrdinalIgnoreCase) ? "ativo" : "";
+}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] · AutoZap</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body class="@(autenticado ? "" : "tela-limpa")">
+
+@if (autenticado)
+{
+    <aside class="barra-lateral">
+        <div class="marca">
+            <span class="marca-icone">⚡</span>
+            <span class="marca-nome">AutoZap</span>
+        </div>
+
+        <nav>
+            <a class="@Ativo("/Index")" asp-page="/Index">Painel</a>
+            <a class="@Ativo("/Instancias")" asp-page="/Instancias">WhatsApp</a>
+            <a class="@Ativo("/Templates")" asp-page="/Templates">Mensagens automáticas</a>
+            <a class="@Ativo("/Clientes")" asp-page="/Clientes">Clientes</a>
+            <a class="@Ativo("/Historico")" asp-page="/Historico">Histórico</a>
+            <a class="@Ativo("/Webhooks")" asp-page="/Webhooks">Integrações</a>
+            <a class="@Ativo("/Planos")" asp-page="/Planos">Plano</a>
+        </nav>
+
+        <form method="post" asp-page="/Logout" class="rodape-lateral">
+            <div class="usuario" title="@User.Identity!.Name">@User.Identity!.Name</div>
+            <button type="submit" class="botao-texto">Sair</button>
+        </form>
+    </aside>
+
+    <main class="conteudo">
+        @RenderBody()
+    </main>
+}
+else
+{
+    <main class="centralizado">
+        @RenderBody()
+    </main>
+}
+
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

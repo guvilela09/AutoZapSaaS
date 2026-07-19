@@ -1,0 +1,121 @@
+@page
+@model AutoZapSaaS.Web.Pages.PlanosModel
+@{ ViewData["Title"] = "Plano"; }
+
+<h1>Plano e cobrança</h1>
+<p class="subtitulo">Escolha o plano de acordo com o volume da sua loja.</p>
+
+@if (!string.IsNullOrEmpty(Model.Erro))
+{
+    <div class="aviso aviso-erro">@Model.Erro</div>
+}
+@if (!string.IsNullOrEmpty(Model.Sucesso))
+{
+    <div class="aviso aviso-ok">@Model.Sucesso</div>
+}
+
+@if (Model.Assinatura is not null)
+{
+    <div class="cartao">
+        <div class="linha-acoes" style="justify-content:space-between">
+            <div>
+                <h2 style="margin-bottom:2px">Plano atual: @Model.Assinatura.PlanoNome</h2>
+                <span class="selo @AutoZapSaaS.Web.Pages.PlanosModel.SeloDoStatus(Model.Assinatura.Status)">
+                    @AutoZapSaaS.Web.Pages.PlanosModel.TextoDoStatus(Model.Assinatura.Status)
+                </span>
+
+                @if (Model.Assinatura.PeriodoFimEm is not null)
+                {
+                    <span class="dica" style="margin-left:8px">
+                        Válido até @Model.Assinatura.PeriodoFimEm.Value.ToLocalTime().ToString("dd/MM/yyyy")
+                    </span>
+                }
+            </div>
+
+            @if (!Model.Assinatura.Tier.Equals("Free", StringComparison.OrdinalIgnoreCase))
+            {
+                <form method="post" asp-page-handler="Cancelar"
+                      onsubmit="return confirm('Cancelar a assinatura? Sua conta volta para o plano Free e os limites diminuem.');">
+                    <button type="submit" class="botao botao-perigo botao-pequeno">Cancelar assinatura</button>
+                </form>
+            }
+        </div>
+
+        <div class="grade grade-2" style="margin-top:18px">
+            <div>
+                <div class="metrica-rotulo">Números de WhatsApp</div>
+                <div class="metrica-valor" style="font-size:22px">
+                    @Model.Assinatura.InstanciasUsadas / @Model.Assinatura.MaxInstancias
+                </div>
+            </div>
+            <div>
+                <div class="metrica-rotulo">Mensagens neste mês</div>
+                <div class="metrica-valor" style="font-size:22px">
+                    @Model.Assinatura.MensagensNoCiclo / @Model.Assinatura.MaxMensagensPorMes
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<form method="post" asp-page-handler="Assinar">
+    <div class="cartao">
+        <div class="campo" style="max-width:280px; margin-bottom:0">
+            <label asp-for="FormaPagamento">Forma de pagamento</label>
+            <select asp-for="FormaPagamento">
+                <option value="Pix">Pix</option>
+                <option value="Boleto">Boleto</option>
+                <option value="CartaoCredito">Cartão de crédito</option>
+                <option value="Indefinida">Deixar o cliente escolher</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="grade grade-3">
+        @foreach (var p in Model.Planos)
+        {
+            <div class="cartao plano @(p.EhAtual ? "atual" : "")">
+                <h2>@p.Nome</h2>
+
+                <div class="plano-preco">
+                    @if (p.PrecoMensal == 0)
+                    {
+                        <text>Grátis</text>
+                    }
+                    else
+                    {
+                        <text>R$ @p.PrecoMensal.ToString("N0")<span>/mês</span></text>
+                    }
+                </div>
+
+                <ul>
+                    <li>@p.MaxInstancias número@(p.MaxInstancias > 1 ? "s" : "") de WhatsApp</li>
+                    <li>@p.MaxMensagensPorMes.ToString("N0") mensagens por mês</li>
+                    <li>Kiwify, Hotmart e Nuvemshop</li>
+                    <li>Mensagens automáticas ilimitadas</li>
+                </ul>
+
+                @if (p.EhAtual)
+                {
+                    <button type="button" class="botao botao-largo" disabled>Plano atual</button>
+                }
+                else if (p.PrecoMensal == 0)
+                {
+                    <button type="button" class="botao botao-secundario botao-largo" disabled>
+                        Cancele para voltar ao Free
+                    </button>
+                }
+                else
+                {
+                    <button type="submit" name="tier" value="@p.Tier" class="botao botao-largo">
+                        Assinar @p.Nome
+                    </button>
+                }
+            </div>
+        }
+    </div>
+</form>
+
+<p class="dica" style="margin-top:18px">
+    Cobrança processada pelo Asaas. Você pode cancelar quando quiser — sem fidelidade.
+</p>

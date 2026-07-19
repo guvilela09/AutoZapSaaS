@@ -85,9 +85,29 @@ services:
       - App__PublicBaseUrl=${PUBLIC_BASE_URL:-http://localhost:5000}
       - EvolutionApi__BaseUrl=http://evolution-api:8080
       - EvolutionApi__ApiKey=${EVOLUTION_API_KEY}
+      - Asaas__ApiKey=${ASAAS_API_KEY:-}
+      - Asaas__WebhookToken=${ASAAS_WEBHOOK_TOKEN:-}
     ports:
       # O runtime .NET 8+ escuta na 8080 dentro do container, nao na 80.
       - "5000:8080"
+    networks:
+      - autozap-network
+
+  web:
+    image: autozap-saas-web
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    pull_policy: build
+    container_name: autozap-web
+    depends_on:
+      - api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      # Dentro da rede do compose o painel fala com a API pelo nome do servico.
+      - Api__BaseUrl=http://api:8080
+    ports:
+      - "5100:8080"
     networks:
       - autozap-network
 

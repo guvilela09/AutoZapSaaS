@@ -1,0 +1,92 @@
+@page
+@model AutoZapSaaS.Web.Pages.IndexModel
+@{
+    ViewData["Title"] = "Painel";
+    var pct = Model.PercentualUsado();
+    var classeMedidor = pct >= 100 ? "cheio" : pct >= 80 ? "quase" : "";
+}
+
+<h1>Painel</h1>
+<p class="subtitulo">Visão geral da sua automação de WhatsApp.</p>
+
+@if (!string.IsNullOrEmpty(Model.Erro))
+{
+    <div class="aviso aviso-erro">@Model.Erro</div>
+}
+
+@* Checklist de ativação: sem esses três passos o produto não envia nada. *@
+@if (!Model.TemNumeroConectado || !Model.TemIntegracao || !Model.TemTemplate)
+{
+    <div class="aviso aviso-atencao">
+        <strong>Falta pouco para começar a enviar:</strong>
+        <ul style="margin:8px 0 0; padding-left:18px">
+            @if (!Model.TemNumeroConectado)
+            {
+                <li><a asp-page="/Instancias">Conecte um número de WhatsApp</a></li>
+            }
+            @if (!Model.TemIntegracao)
+            {
+                <li><a asp-page="/Webhooks">Ligue sua plataforma de vendas</a></li>
+            }
+            @if (!Model.TemTemplate)
+            {
+                <li><a asp-page="/Templates">Crie uma mensagem automática</a></li>
+            }
+        </ul>
+    </div>
+}
+
+<div class="grade grade-3">
+    <div class="cartao">
+        <div class="metrica-valor">@Model.Instancias.Count</div>
+        <div class="metrica-rotulo">
+            Números conectados
+            @if (Model.Assinatura is not null)
+            {
+                <text>de @Model.Assinatura.MaxInstancias</text>
+            }
+        </div>
+    </div>
+
+    <div class="cartao">
+        <div class="metrica-valor">@Model.TotalClientes</div>
+        <div class="metrica-rotulo">Clientes cadastrados</div>
+    </div>
+
+    <div class="cartao">
+        <div class="metrica-valor">@Model.MensagensEnviadas</div>
+        <div class="metrica-rotulo">
+            Mensagens entregues
+            @if (Model.MensagensComFalha > 0)
+            {
+                <text>· <span style="color:var(--vermelho)">@Model.MensagensComFalha com falha</span></text>
+            }
+        </div>
+    </div>
+</div>
+
+@if (Model.Assinatura is not null)
+{
+    <div class="cartao">
+        <h2>Plano @Model.Assinatura.PlanoNome</h2>
+
+        <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:2px">
+            <span>
+                @(Model.Assinatura.MaxMensagensPorMes - Model.Assinatura.MensagensRestantes)
+                de @Model.Assinatura.MaxMensagensPorMes mensagens usadas neste mês
+            </span>
+            <strong>@pct%</strong>
+        </div>
+
+        <div class="medidor">
+            <div class="medidor-preenchido @classeMedidor" style="width:@(Math.Min(pct, 100))%"></div>
+        </div>
+
+        @if (pct >= 80)
+        {
+            <p class="dica" style="margin-top:12px">
+                Sua cota está acabando. <a asp-page="/Planos">Ver planos</a>
+            </p>
+        }
+    </div>
+}

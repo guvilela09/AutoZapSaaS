@@ -1,0 +1,74 @@
+@page
+@model AutoZapSaaS.Web.Pages.HistoricoModel
+@{ ViewData["Title"] = "Histórico"; }
+
+<h1>Histórico de mensagens</h1>
+<p class="subtitulo">Últimas 200 mensagens disparadas pela sua conta.</p>
+
+@if (!string.IsNullOrEmpty(Model.Erro))
+{
+    <div class="aviso aviso-erro">@Model.Erro</div>
+}
+
+<div class="grade grade-2" style="margin-bottom:20px">
+    <div class="cartao">
+        <div class="metrica-valor">@Model.TotalEnviadas</div>
+        <div class="metrica-rotulo">Entregues</div>
+    </div>
+    <div class="cartao">
+        <div class="metrica-valor" style="@(Model.TotalFalhas > 0 ? "color:var(--vermelho)" : "")">
+            @Model.TotalFalhas
+        </div>
+        <div class="metrica-rotulo">Com falha</div>
+    </div>
+</div>
+
+<div class="cartao">
+    <div class="linha-acoes" style="margin-bottom:16px">
+        <a class="botao @(string.IsNullOrEmpty(Model.Filtro) ? "" : "botao-secundario")"
+           asp-page="/Historico">Todas</a>
+        <a class="botao @(Model.Filtro == "enviadas" ? "" : "botao-secundario")"
+           asp-page="/Historico" asp-route-filtro="enviadas">Entregues</a>
+        <a class="botao @(Model.Filtro == "falhas" ? "" : "botao-secundario")"
+           asp-page="/Historico" asp-route-filtro="falhas">Com falha</a>
+    </div>
+
+    @if (!Model.Mensagens.Any())
+    {
+        <div class="vazio">
+            <p>Nenhuma mensagem neste filtro.</p>
+        </div>
+    }
+    else
+    {
+        <div class="rolagem">
+            <table class="tabela">
+                <thead>
+                <tr>
+                    <th>Quando</th>
+                    <th>Cliente</th>
+                    <th>WhatsApp</th>
+                    <th>Mensagem</th>
+                    <th>Situação</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var m in Model.Mensagens)
+                {
+                    <tr>
+                        <td>@m.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm")</td>
+                        <td>@(string.IsNullOrWhiteSpace(m.CustomerName) ? "—" : m.CustomerName)</td>
+                        <td>@AutoZapSaaS.Web.Pages.ClientesModel.FormatarTelefone(m.PhoneNumber)</td>
+                        <td style="max-width:330px; color:var(--suave)">@m.Body</td>
+                        <td>
+                            <span class="selo @AutoZapSaaS.Web.Pages.HistoricoModel.SeloDoStatus(m.Status)">
+                                @AutoZapSaaS.Web.Pages.HistoricoModel.TextoDoStatus(m.Status)
+                            </span>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
