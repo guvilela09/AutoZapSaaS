@@ -23,7 +23,9 @@ public class TenantService : ITenantService
 
     public async Task<TenantResponse> CreateAsync(CreateTenantRequest request)
     {
+        // Checagem de duplicidade é global por natureza — precisa enxergar todos os tenants.
         var existing = await _context.Tenants
+            .IgnoreQueryFilters()
             .FirstOrDefaultAsync(t => t.Email == request.Email || t.Document == request.Document);
 
         if (existing is not null)
@@ -44,13 +46,13 @@ public class TenantService : ITenantService
 
     public async Task<TenantResponse?> GetByIdAsync(Guid id)
     {
-        var tenant = await _context.Tenants.FindAsync(id);
+        var tenant = await _context.Tenants.FirstOrDefaultAsync(t => t.Id == id);
         return tenant is null ? null : _mapper.Map<TenantResponse>(tenant);
     }
 
     public async Task<TenantResponse?> UpdateAsync(Guid id, UpdateTenantRequest request)
     {
-        var tenant = await _context.Tenants.FindAsync(id);
+        var tenant = await _context.Tenants.FirstOrDefaultAsync(t => t.Id == id);
         if (tenant is null) return null;
 
         typeof(Tenant).GetProperty(nameof(Tenant.Name))!.SetValue(tenant, request.Name);
@@ -64,7 +66,7 @@ public class TenantService : ITenantService
 
     public async Task<bool> DeactivateAsync(Guid id)
     {
-        var tenant = await _context.Tenants.FindAsync(id);
+        var tenant = await _context.Tenants.FirstOrDefaultAsync(t => t.Id == id);
         if (tenant is null) return false;
 
         tenant.Deactivate();
@@ -74,7 +76,7 @@ public class TenantService : ITenantService
 
     public async Task<bool> ActivateAsync(Guid id)
     {
-        var tenant = await _context.Tenants.FindAsync(id);
+        var tenant = await _context.Tenants.FirstOrDefaultAsync(t => t.Id == id);
         if (tenant is null) return false;
 
         typeof(Tenant).GetProperty(nameof(Tenant.IsActive))!.SetValue(tenant, true);

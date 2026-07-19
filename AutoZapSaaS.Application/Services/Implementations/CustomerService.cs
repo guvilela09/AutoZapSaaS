@@ -33,7 +33,7 @@ public class CustomerService : ICustomerService
 
     public async Task<CustomerResponse?> GetByIdAsync(Guid id)
     {
-        var customer = await _context.Customers.FindAsync(id);
+        var customer = await _context.Customers.FirstOrDefaultAsync(c => c.Id == id);
         return customer is null ? null : _mapper.Map<CustomerResponse>(customer);
     }
 
@@ -57,7 +57,7 @@ public class CustomerService : ICustomerService
 
     public async Task<CustomerResponse?> UpdateAsync(Guid id, UpdateCustomerRequest request)
     {
-        var customer = await _context.Customers.FindAsync(id);
+        var customer = await _context.Customers.FirstOrDefaultAsync(c => c.Id == id);
         if (customer is null) return null;
 
         typeof(Customer).GetProperty(nameof(Customer.Name))!.SetValue(customer, request.Name);
@@ -71,7 +71,7 @@ public class CustomerService : ICustomerService
 
     public async Task<bool> DeleteAsync(Guid id)
     {
-        var customer = await _context.Customers.FindAsync(id);
+        var customer = await _context.Customers.FirstOrDefaultAsync(c => c.Id == id);
         if (customer is null) return false;
 
         _context.Customers.Remove(customer);

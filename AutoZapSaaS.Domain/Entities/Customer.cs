@@ -4,7 +4,7 @@ using System.Globalization;
 namespace AutoZapSaaS.Domain.Entities
 {
     
-    public class Customer : Entity
+    public class Customer : Entity, ITenantEntity
     {
         public Guid TenantId { get; set; }
         public string Name { get; set; } = string.Empty;

@@ -1,6 +1,6 @@
 namespace AutoZapSaaS.Domain.Entities;
 
-public class SystemUser : Entity
+public class SystemUser : Entity, ITenantEntity
 {
     public Guid TenantId { get; private set; }
     public string Email { get; private set; }

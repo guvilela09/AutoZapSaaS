@@ -37,7 +37,11 @@ public class WhatsAppService : IWhatsAppService
         if (instance.Status != InstanceStatus.Connected)
             throw new InvalidOperationException("Instância não está conectada.");
 
-        var message = new WhatsAppMessage(tenantId, instance.Id, Guid.Empty, request.PhoneNumber, request.Message);
+        // Envio avulso: o telefone pode não corresponder a nenhum cliente cadastrado.
+        var customerId = (await _context.Customers
+            .FirstOrDefaultAsync(c => c.PhoneNumber == request.PhoneNumber))?.Id;
+
+        var message = new WhatsAppMessage(tenantId, instance.Id, customerId, request.PhoneNumber, request.Message);
 
         try
         {

@@ -1,107 +1,124 @@
 using System.Text.Json;
+using AutoZapSaaS.Application.Common.Interfaces;
 using AutoZapSaaS.Application.Services.Interfaces;
-using AutoZapSaaS.Infrastructure.Persistence;
+using AutoZapSaaS.Domain.Enums;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace AutoZapSaaS.API.Controllers;
 
+/// <summary>
+/// Endpoint público. A identidade do tenant vem do token na URL e a autenticidade
+/// da requisição vem da assinatura HMAC — nunca de um header que o chamador escolhe.
+/// </summary>
 [ApiController]
 [Route("api/webhooks")]
 public class WebhookController : ControllerBase
 {
     private readonly IWebhookService _webhookService;
-    private readonly ApplicationDbContext _context;
+    private readonly IWebhookIntegrationService _integrationService;
+    private readonly IWebhookSignatureValidator _signatureValidator;
+    private readonly ITenantContext _tenantContext;
     private readonly ILogger<WebhookController> _logger;
 
     public WebhookController(
         IWebhookService webhookService,
-        ApplicationDbContext context,
+        IWebhookIntegrationService integrationService,
+        IWebhookSignatureValidator signatureValidator,
+        ITenantContext tenantContext,
         ILogger<WebhookController> logger)
     {
         _webhookService = webhookService;
-        _context = context;
+        _integrationService = integrationService;
+        _signatureValidator = signatureValidator;
+        _tenantContext = tenantContext;
         _logger = logger;
     }
 
-    [HttpPost("kiwify")]
-    public async Task<IActionResult> ReceiveKiwify([FromBody] JsonElement payload, [FromHeader] string? xTenantId)
+    [HttpPost("kiwify/{token}")]
+    public Task<IActionResult> ReceiveKiwify(string token) =>
+        HandleAsync(token, WebhookPlatform.Kiwify,
+            async (tenantId, payload) => await _webhookService.ProcessKiwifyAsync(tenantId, payload));
+
+    [HttpPost("hotmart/{token}")]
+    public Task<IActionResult> ReceiveHotmart(string token) =>
+        HandleAsync(token, WebhookPlatform.Hotmart,
+            async (tenantId, payload) => await _webhookService.ProcessHotmartAsync(tenantId, payload));
+
+    [HttpPost("nuvemshop/{token}")]
+    public Task<IActionResult> ReceiveNuvemshop(string token) =>
+        HandleAsync(token, WebhookPlatform.Nuvemshop,
+            async (tenantId, payload) => await _webhookService.ProcessNuvemshopAsync(tenantId, payload));
+
+    private async Task<IActionResult> HandleAsync(
+        string token,
+        WebhookPlatform expectedPlatform,
+        Func<Guid, JsonElement, Task<object>> process)
     {
+        var integration = await _integrationService.ResolveByTokenAsync(token);
+
+        // Token inválido e plataforma trocada respondem igual a assinatura inválida:
+        // não entregamos ao atacante a informação de qual token existe.
+        if (integration is null || integration.Platform != expectedPlatform)
+        {
+            _logger.LogWarning("Webhook rejeitado: token desconhecido para {Platform}", expectedPlatform);
+            return Unauthorized(new { error = "Webhook não autorizado." });
+        }
+
+        var rawBody = await ReadRawBodyAsync();
+
+        if (!_signatureValidator.IsValid(expectedPlatform, rawBody, ExtractSignature(expectedPlatform), integration.Secret))
+        {
+            _logger.LogWarning("Webhook rejeitado: assinatura inválida para tenant {TenantId} ({Platform})",
+                integration.TenantId, expectedPlatform);
+            return Unauthorized(new { error = "Webhook não autorizado." });
+        }
+
+        // Só depois de provar a origem é que a requisição ganha um tenant.
+        _tenantContext.SetTenant(integration.TenantId);
+
+        JsonElement payload;
         try
         {
-            var tenantId = await ResolveTenantAsync(xTenantId);
+            payload = JsonDocument.Parse(rawBody).RootElement;
+        }
+        catch (JsonException)
+        {
+            return BadRequest(new { error = "Payload não é um JSON válido." });
+        }
 
-            var result = await _webhookService.ProcessKiwifyAsync(tenantId, payload);
+        try
+        {
+            var result = await process(integration.TenantId, payload);
+            await _integrationService.MarkReceivedAsync(integration.IntegrationId);
             return Ok(result);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Erro webhook Kiwify");
-            return BadRequest(new { error = ex.Message });
+            // A mensagem crua da exceção pode conter detalhe interno — fica só no log.
+            _logger.LogError(ex, "Erro ao processar webhook {Platform} do tenant {TenantId}",
+                expectedPlatform, integration.TenantId);
+            return StatusCode(500, new { error = "Erro ao processar webhook." });
         }
     }
 
-    [HttpPost("hotmart")]
-    public async Task<IActionResult> ReceiveHotmart([FromBody] JsonElement payload, [FromHeader] string? xTenantId)
+    /// <summary>Corpo exatamente como chegou — reserializar invalidaria o HMAC.</summary>
+    private async Task<string> ReadRawBodyAsync()
     {
-        try
-        {
-            var tenantId = await ResolveTenantAsync(xTenantId);
+        Request.EnableBuffering();
+        Request.Body.Position = 0;
 
-            var result = await _webhookService.ProcessHotmartAsync(tenantId, payload);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Erro webhook Hotmart");
-            return BadRequest(new { error = ex.Message });
-        }
+        using var reader = new StreamReader(Request.Body, leaveOpen: true);
+        var body = await reader.ReadToEndAsync();
+
+        Request.Body.Position = 0;
+        return body;
     }
 
-    [HttpPost("nuvemshop")]
-    public async Task<IActionResult> ReceiveNuvemshop([FromBody] JsonElement payload, [FromHeader] string? xTenantId)
+    private string? ExtractSignature(WebhookPlatform platform) => platform switch
     {
-        try
-        {
-            var tenantId = await ResolveTenantAsync(xTenantId);
-
-            var result = await _webhookService.ProcessNuvemshopAsync(tenantId, payload);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Erro webhook Nuvemshop");
-            return BadRequest(new { error = ex.Message });
-        }
-    }
-
-    [HttpPost("receive")]
-    public async Task<IActionResult> ReceiveWebhook([FromBody] JsonElement payload)
-    {
-        try
-        {
-            var tenant = await _context.Tenants.FirstOrDefaultAsync();
-            if (tenant is null)
-                return BadRequest("Nenhum tenant encontrado.");
-
-            var result = await _webhookService.ProcessKiwifyAsync(tenant.Id, payload);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Erro webhook genérico");
-            return BadRequest(new { error = ex.Message });
-        }
-    }
-
-    private async Task<Guid> ResolveTenantAsync(string? xTenantId)
-    {
-        if (!string.IsNullOrWhiteSpace(xTenantId) && Guid.TryParse(xTenantId, out var tid))
-            return tid;
-
-        var tenant = await _context.Tenants.FirstOrDefaultAsync()
-            ?? throw new InvalidOperationException("Nenhum tenant encontrado. Informe X-Tenant-Id.");
-
-        return tenant.Id;
-    }
+        WebhookPlatform.Kiwify => Request.Query["signature"].FirstOrDefault(),
+        WebhookPlatform.Hotmart => Request.Headers["X-HOTMART-HOTTOK"].FirstOrDefault(),
+        WebhookPlatform.Nuvemshop => Request.Headers["x-linkedstore-hmac-sha256"].FirstOrDefault(),
+        _ => null
+    };
 }

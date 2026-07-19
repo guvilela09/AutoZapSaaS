@@ -30,6 +30,11 @@ public static class DependencyInjection
             client.Timeout = TimeSpan.FromSeconds(30);
             client.DefaultRequestHeaders.Accept.Add(
                 new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+
+            // Configurado uma unica vez. Mutar DefaultRequestHeaders a cada chamada
+            // nao e thread-safe: o HttpClient e compartilhado entre requisicoes.
+            if (!string.IsNullOrWhiteSpace(settings.ApiKey))
+                client.DefaultRequestHeaders.Add("apikey", settings.ApiKey);
         });
 
         return services;

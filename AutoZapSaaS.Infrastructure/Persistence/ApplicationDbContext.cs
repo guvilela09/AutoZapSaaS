@@ -1,4 +1,4 @@
-﻿using AutoZapSaaS.Application.Common.Interfaces;
+using AutoZapSaaS.Application.Common.Interfaces;
 using AutoZapSaaS.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -6,9 +6,12 @@ namespace AutoZapSaaS.Infrastructure.Persistence;
 
 public class ApplicationDbContext : DbContext, IApplicationDbContext
 {
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+    private readonly ITenantContext _tenantContext;
+
+    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options, ITenantContext tenantContext)
         : base(options)
     {
+        _tenantContext = tenantContext;
     }
 
     public DbSet<Tenant> Tenants => Set<Tenant>();
@@ -18,6 +21,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<WebhookEvent> WebhookEvents => Set<WebhookEvent>();
     public DbSet<MessageTemplate> MessageTemplates => Set<MessageTemplate>();
     public DbSet<WhatsAppMessage> WhatsAppMessages => Set<WhatsAppMessage>();
+    public DbSet<WebhookIntegration> WebhookIntegrations => Set<WebhookIntegration>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -51,7 +55,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
         {
             e.HasKey(c => c.Id);
             e.Property(c => c.PhoneNumber).IsRequired().HasMaxLength(20);
-            e.HasIndex(c => c.PhoneNumber);
+            e.HasIndex(c => new { c.TenantId, c.PhoneNumber });
         });
 
         modelBuilder.Entity<SystemUser>(e =>
@@ -101,10 +105,63 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
              .HasForeignKey(m => m.InstanceId)
              .OnDelete(DeleteBehavior.Restrict);
 
+            // Apagar um cliente não pode apagar nem travar o histórico de mensagens:
+            // a mensagem sobrevive, apenas perde o vínculo.
             e.HasOne(m => m.Customer)
              .WithMany()
              .HasForeignKey(m => m.CustomerId)
-             .OnDelete(DeleteBehavior.Restrict);
+             .OnDelete(DeleteBehavior.SetNull);
         });
+
+        modelBuilder.Entity<WebhookIntegration>(e =>
+        {
+            e.HasKey(w => w.Id);
+            e.Property(w => w.Token).IsRequired().HasMaxLength(64);
+            e.Property(w => w.Secret).IsRequired().HasMaxLength(200);
+            e.HasIndex(w => w.Token).IsUnique();
+            e.HasIndex(w => new { w.TenantId, w.Platform }).IsUnique();
+
+            e.HasOne(w => w.Tenant)
+             .WithMany()
+             .HasForeignKey(w => w.TenantId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        ApplyTenantFilters(modelBuilder);
+    }
+
+    /// <summary>
+    /// Isolamento multi-tenant por padrão: toda entidade ITenantEntity só enxerga linhas
+    /// do tenant da requisição. Vazar dado passa a exigir um IgnoreQueryFilters() explícito
+    /// e visível no código, em vez de acontecer por esquecer um .Where().
+    /// </summary>
+    private void ApplyTenantFilters(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Tenant>().HasQueryFilter(t => t.Id == _tenantContext.TenantId);
+        modelBuilder.Entity<Customer>().HasQueryFilter(c => c.TenantId == _tenantContext.TenantId);
+        modelBuilder.Entity<Instance>().HasQueryFilter(i => i.TenantId == _tenantContext.TenantId);
+        modelBuilder.Entity<SystemUser>().HasQueryFilter(u => u.TenantId == _tenantContext.TenantId);
+        modelBuilder.Entity<MessageTemplate>().HasQueryFilter(t => t.TenantId == _tenantContext.TenantId);
+        modelBuilder.Entity<WhatsAppMessage>().HasQueryFilter(m => m.TenantId == _tenantContext.TenantId);
+        modelBuilder.Entity<WebhookIntegration>().HasQueryFilter(w => w.TenantId == _tenantContext.TenantId);
+        modelBuilder.Entity<WebhookEvent>().HasQueryFilter(w => w.TenantId == _tenantContext.TenantId);
+    }
+
+    /// <summary>
+    /// Carimba o TenantId em entidades novas que não o receberam, para que nenhuma linha
+    /// nasça órfã e invisível ao próprio dono por causa do query filter.
+    /// </summary>
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        if (_tenantContext.IsSet)
+        {
+            foreach (var entry in ChangeTracker.Entries<ITenantEntity>())
+            {
+                if (entry.State == EntityState.Added && entry.Entity.TenantId == Guid.Empty)
+                    entry.Property(nameof(ITenantEntity.TenantId)).CurrentValue = _tenantContext.TenantId;
+            }
+        }
+
+        return base.SaveChangesAsync(cancellationToken);
     }
 }

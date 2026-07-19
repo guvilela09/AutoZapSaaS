@@ -2,11 +2,15 @@ using AutoZapSaaS.Domain.Enums;
 
 namespace AutoZapSaaS.Domain.Entities;
 
-public class WhatsAppMessage : Entity
+public class WhatsAppMessage : Entity, ITenantEntity
 {
     public Guid TenantId { get; private set; }
     public Guid InstanceId { get; private set; }
-    public Guid CustomerId { get; private set; }
+
+    /// <summary>
+    /// Nulo em envio avulso para um telefone que ainda não é cliente cadastrado.
+    /// </summary>
+    public Guid? CustomerId { get; private set; }
     public string PhoneNumber { get; private set; }
     public string Body { get; private set; }
     public MessageStatus Status { get; private set; }
@@ -19,7 +23,7 @@ public class WhatsAppMessage : Entity
 
     public WhatsAppMessage() { }
 
-    public WhatsAppMessage(Guid tenantId, Guid instanceId, Guid customerId, string phoneNumber, string body)
+    public WhatsAppMessage(Guid tenantId, Guid instanceId, Guid? customerId, string phoneNumber, string body)
     {
         TenantId = tenantId;
         InstanceId = instanceId;

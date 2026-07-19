@@ -133,18 +133,18 @@ public class WebhookService : IWebhookService
         Guid tenantId, string name, string phone, string email,
         string origin, WebhookEvent webhookEvent)
     {
-        var existingCustomer = await _context.Customers
+        var customer = await _context.Customers
             .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.PhoneNumber == phone);
 
-        if (existingCustomer is not null)
+        if (customer is not null)
         {
-            existingCustomer.UpdatePhoneNumber(phone);
-            typeof(Customer).GetProperty(nameof(Customer.Name))!.SetValue(existingCustomer, name);
+            customer.Name = name;
+            customer.SetUpdatedAt();
             _logger.LogInformation("Cliente atualizado via webhook: {Phone}", phone);
         }
         else
         {
-            var customer = new Customer(tenantId, name, phone, email, origin);
+            customer = new Customer(tenantId, name, phone, email, origin);
             _context.Customers.Add(customer);
             _logger.LogInformation("Novo cliente via webhook: {Name} - {Phone}", name, phone);
         }
@@ -165,7 +165,7 @@ public class WebhookService : IWebhookService
                 ? template.Render(name, $"Pedido confirmado via {origin}")
                 : $"Olá {name}! Seu pedido na {origin} foi confirmado com sucesso. Qualquer dúvida, é só responder por aqui!";
 
-            var message = new WhatsAppMessage(tenantId, instance.Id, Guid.Empty, phone, body);
+            var message = new WhatsAppMessage(tenantId, instance.Id, customer.Id, phone, body);
 
             try
             {

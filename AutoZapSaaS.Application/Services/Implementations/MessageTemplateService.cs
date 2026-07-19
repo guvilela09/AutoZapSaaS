@@ -37,7 +37,7 @@ public class MessageTemplateService : IMessageTemplateService
 
     public async Task<MessageTemplateResponse?> GetByIdAsync(Guid id)
     {
-        var template = await _context.MessageTemplates.FindAsync(id);
+        var template = await _context.MessageTemplates.FirstOrDefaultAsync(t => t.Id == id);
         return template is null ? null : _mapper.Map<MessageTemplateResponse>(template);
     }
 
@@ -53,7 +53,7 @@ public class MessageTemplateService : IMessageTemplateService
 
     public async Task<MessageTemplateResponse?> UpdateAsync(Guid id, UpdateMessageTemplateRequest request)
     {
-        var template = await _context.MessageTemplates.FindAsync(id);
+        var template = await _context.MessageTemplates.FirstOrDefaultAsync(t => t.Id == id);
         if (template is null) return null;
 
         if (!Enum.TryParse<EventType>(request.EventType, true, out var eventType))
@@ -69,7 +69,7 @@ public class MessageTemplateService : IMessageTemplateService
 
     public async Task<bool> DeleteAsync(Guid id)
     {
-        var template = await _context.MessageTemplates.FindAsync(id);
+        var template = await _context.MessageTemplates.FirstOrDefaultAsync(t => t.Id == id);
         if (template is null) return false;
 
         _context.MessageTemplates.Remove(template);

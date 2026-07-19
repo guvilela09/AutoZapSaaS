@@ -1,4 +1,5 @@
-using AutoZapSaaS.API.Common;
+using AutoZapSaaS.Application.Common;
+using AutoZapSaaS.Application.Common.Interfaces;
 using AutoZapSaaS.Application.DTOs;
 using AutoZapSaaS.Application.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -23,8 +24,15 @@ public class InstancesController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateInstanceRequest request)
     {
-        var result = await _instanceService.CreateAsync(_tenantContext.TenantId, request);
-        return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
+        try
+        {
+            var result = await _instanceService.CreateAsync(_tenantContext.TenantId, request);
+            return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
+        }
+        catch (EvolutionApiException ex)
+        {
+            return EvolutionIndisponivel(ex);
+        }
     }
 
     [HttpGet]
@@ -63,9 +71,13 @@ public class InstancesController : ControllerBase
             var result = await _instanceService.ConnectAsync(id);
             return result ? Ok(new { message = "Conectando..." }) : NotFound();
         }
-        catch (Exception ex)
+        catch (EvolutionApiException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return EvolutionIndisponivel(ex);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new { error = ex.Message });
         }
     }
 
@@ -77,9 +89,13 @@ public class InstancesController : ControllerBase
             var result = await _instanceService.DisconnectAsync(id);
             return result ? Ok(new { message = "Desconectado." }) : NotFound();
         }
-        catch (Exception ex)
+        catch (EvolutionApiException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return EvolutionIndisponivel(ex);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new { error = ex.Message });
         }
     }
 
@@ -91,9 +107,13 @@ public class InstancesController : ControllerBase
             var qrCode = await _instanceService.GetQrCodeAsync(id);
             return Ok(qrCode);
         }
-        catch (Exception ex)
+        catch (EvolutionApiException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return EvolutionIndisponivel(ex);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new { error = ex.Message });
         }
     }
 
@@ -105,9 +125,25 @@ public class InstancesController : ControllerBase
             var status = await _instanceService.GetStatusAsync(id);
             return Ok(status);
         }
-        catch (Exception ex)
+        catch (EvolutionApiException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return EvolutionIndisponivel(ex);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new { error = ex.Message });
         }
     }
+
+    /// <summary>
+    /// 502: a falha e da Evolution, nao da requisicao do tenant. Devolver 400 aqui
+    /// culparia o cliente por uma indisponibilidade nossa. O corpo cru da resposta
+    /// fica so no log, para nao vazar detalhe interno.
+    /// </summary>
+    private IActionResult EvolutionIndisponivel(EvolutionApiException ex) =>
+        StatusCode(StatusCodes.Status502BadGateway, new
+        {
+            error = "Nao foi possivel falar com o servico de WhatsApp. Tente novamente.",
+            upstreamStatus = ex.StatusCode is null ? null : (int?)ex.StatusCode
+        });
 }

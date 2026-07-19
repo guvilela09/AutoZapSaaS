@@ -1,23 +1,41 @@
-using System.Security.Claims;
+using AutoZapSaaS.Application.Common.Interfaces;
 
 namespace AutoZapSaaS.API.Common;
 
-public interface ITenantContext
-{
-    Guid TenantId { get; }
-}
-
+/// <summary>
+/// Resolve o tenant da requisição a partir da claim "tenant_id" do JWT.
+/// Requisições sem JWT (webhooks) nascem sem tenant e precisam chamar
+/// <see cref="SetTenant"/> após autenticar a origem.
+/// </summary>
 public class TenantContext : ITenantContext
 {
-    public Guid TenantId { get; }
+    private readonly bool _fromClaims;
+    private Guid _tenantId;
 
     public TenantContext(IHttpContextAccessor httpContextAccessor)
     {
-        var userIdClaim = httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier);
         var tenantIdClaim = httpContextAccessor.HttpContext?.User.FindFirst("tenant_id");
 
-        TenantId = Guid.TryParse(tenantIdClaim?.Value ?? string.Empty, out var tenantId)
-            ? tenantId
-            : Guid.Empty;
+        if (Guid.TryParse(tenantIdClaim?.Value, out var tenantId) && tenantId != Guid.Empty)
+        {
+            _tenantId = tenantId;
+            _fromClaims = true;
+        }
+    }
+
+    public Guid TenantId => _tenantId;
+
+    public bool IsSet => _tenantId != Guid.Empty;
+
+    public void SetTenant(Guid tenantId)
+    {
+        if (_fromClaims)
+            throw new InvalidOperationException(
+                "O tenant desta requisição veio do JWT e não pode ser sobrescrito.");
+
+        if (tenantId == Guid.Empty)
+            throw new ArgumentException("TenantId inválido.", nameof(tenantId));
+
+        _tenantId = tenantId;
     }
 }

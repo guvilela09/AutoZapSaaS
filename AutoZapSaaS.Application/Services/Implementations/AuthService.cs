@@ -22,7 +22,10 @@ public class AuthService : IAuthService
 
     public async Task<LoginResponse> LoginAsync(LoginRequest request)
     {
+        // Login acontece antes de existir tenant na requisição: precisa varrer todos os
+        // usuários para descobrir a qual tenant o e-mail pertence.
         var user = await _context.SystemUsers
+            .IgnoreQueryFilters()
             .Include(u => u.Tenant)
             .FirstOrDefaultAsync(u => u.Email == request.Email && u.IsActive);
 
@@ -39,13 +42,16 @@ public class AuthService : IAuthService
 
     public async Task<LoginResponse> RegisterAsync(RegisterRequest request)
     {
+        // Checagem de duplicidade é global por natureza — precisa enxergar todos os tenants.
         var existingTenant = await _context.Tenants
+            .IgnoreQueryFilters()
             .FirstOrDefaultAsync(t => t.Email == request.Email || t.Document == request.Document);
 
         if (existingTenant is not null)
             throw new InvalidOperationException("Já existe uma conta com este email ou documento.");
 
         var existingUser = await _context.SystemUsers
+            .IgnoreQueryFilters()
             .FirstOrDefaultAsync(u => u.Email == request.AdminEmail);
 
         if (existingUser is not null)

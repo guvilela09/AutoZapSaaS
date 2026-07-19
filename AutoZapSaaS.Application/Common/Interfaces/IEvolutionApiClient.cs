@@ -8,4 +8,5 @@ public interface IEvolutionApiClient
     Task<bool> SendMessageAsync(string instanceName, string phoneNumber, string message);
     Task<string> GetConnectionStatusAsync(string instanceName);
     Task<bool> DisconnectInstanceAsync(string instanceName);
+    Task<bool> DeleteInstanceAsync(string instanceName);
 }

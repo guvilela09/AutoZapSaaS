@@ -10,7 +10,7 @@ namespace AutoZapSaaS.Domain.Entities
         Banned = 99
     }
 
-    public class Instance : Entity
+    public class Instance : Entity, ITenantEntity
     {
         public Guid TenantId { get; private set; }
         public string Name { get; private set; } // Ex: "WhatsApp Suporte"
@@ -28,6 +28,16 @@ namespace AutoZapSaaS.Domain.Entities
             SessionName = sessionName; // Geralmente único
             Token = token;
             Status = InstanceStatus.Disconnected;
+        }
+
+        /// <summary>
+        /// Pareamento iniciado, aguardando alguém escanear o QR Code. Ainda NAO esta
+        /// conectada: marcar como Connected aqui faria o painel mentir para o tenant.
+        /// </summary>
+        public void SetConnecting()
+        {
+            Status = InstanceStatus.Connecting;
+            SetUpdatedAt();
         }
 
         // Métodos para alterar o estado da Instância

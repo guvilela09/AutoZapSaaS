@@ -1,4 +1,4 @@
-using AutoZapSaaS.API.Common;
+using AutoZapSaaS.Application.Common.Interfaces;
 using AutoZapSaaS.Application.DTOs;
 using AutoZapSaaS.Application.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;

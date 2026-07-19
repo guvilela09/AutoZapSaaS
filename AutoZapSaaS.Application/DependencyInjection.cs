@@ -17,7 +17,10 @@ public static class DependencyInjection
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
 
         services.Configure<JwtSettings>(configuration.GetSection("Jwt"));
+        services.Configure<AppSettings>(configuration.GetSection("App"));
 
+        services.AddSingleton<IWebhookSignatureValidator, WebhookSignatureValidator>();
+        services.AddScoped<IWebhookIntegrationService, WebhookIntegrationService>();
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ITenantService, TenantService>();

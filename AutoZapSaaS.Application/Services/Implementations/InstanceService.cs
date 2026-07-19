@@ -38,9 +38,14 @@ public class InstanceService : IInstanceService
             await _evolutionClient.CreateInstanceAsync(request.SessionName, request.Token);
             _logger.LogInformation("Instância Evolution criada: {SessionName}", request.SessionName);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            _logger.LogWarning(ex, "Instância DB criada, mas Evolution API falhou para {SessionName}", request.SessionName);
+            // Uma instância que existe só no nosso banco é inútil: conectar, ler QR Code
+            // e enviar mensagem falham todos depois. Antes isso virava um 200 e o tenant
+            // só descobria o problema ao tentar usar. Desfaz e propaga.
+            _context.Instances.Remove(instance);
+            await _context.SaveChangesAsync(CancellationToken.None);
+            throw;
         }
 
         return _mapper.Map<InstanceResponse>(instance);
@@ -48,7 +53,7 @@ public class InstanceService : IInstanceService
 
     public async Task<InstanceResponse?> GetByIdAsync(Guid id)
     {
-        var instance = await _context.Instances.FindAsync(id);
+        var instance = await _context.Instances.FirstOrDefaultAsync(i => i.Id == id);
         return instance is null ? null : _mapper.Map<InstanceResponse>(instance);
     }
 
@@ -63,7 +68,7 @@ public class InstanceService : IInstanceService
 
     public async Task<InstanceResponse?> UpdateAsync(Guid id, UpdateInstanceRequest request)
     {
-        var instance = await _context.Instances.FindAsync(id);
+        var instance = await _context.Instances.FirstOrDefaultAsync(i => i.Id == id);
         if (instance is null) return null;
 
         typeof(Instance).GetProperty(nameof(Instance.Name))!.SetValue(instance, request.Name);
@@ -76,14 +81,24 @@ public class InstanceService : IInstanceService
 
     public async Task<bool> DeleteAsync(Guid id)
     {
-        var instance = await _context.Instances.FindAsync(id);
+        var instance = await _context.Instances.FirstOrDefaultAsync(i => i.Id == id);
         if (instance is null) return false;
 
         try
         {
-            await _evolutionClient.DisconnectInstanceAsync(instance.SessionName);
+            // Remove de verdade da Evolution. Antes chamava apenas logout, que desconecta
+            // mas deixa a instância existindo lá para sempre — um vazamento por exclusão.
+            await _evolutionClient.DeleteInstanceAsync(instance.SessionName);
         }
-        catch { }
+        catch (Exception ex)
+        {
+            // Não bloqueia a exclusão: se a Evolution está fora do ar, o tenant ficaria
+            // preso com uma instância que não consegue remover. Mas registra como erro,
+            // porque sobra uma sessão órfã lá que precisa de limpeza manual.
+            _logger.LogError(ex,
+                "Instância {SessionName} removida do banco, mas continua na Evolution. " +
+                "Requer limpeza manual.", instance.SessionName);
+        }
 
         _context.Instances.Remove(instance);
         await _context.SaveChangesAsync(CancellationToken.None);
@@ -92,15 +107,16 @@ public class InstanceService : IInstanceService
 
     public async Task<QrCodeResponse> GetQrCodeAsync(Guid id)
     {
-        var instance = await _context.Instances.FindAsync(id)
+        var instance = await _context.Instances.FirstOrDefaultAsync(i => i.Id == id)
             ?? throw new InvalidOperationException("Instância não encontrada.");
 
-        await _evolutionClient.ConnectInstanceAsync(instance.SessionName);
-
-        await Task.Delay(1500);
-
+        // GetQrCodeAsync já chama o connect por baixo — na v2 o QR vem nessa resposta.
+        // O connect extra aqui, mais um Task.Delay(1500) fixo, era herança da v1.
         var qrCodeBytes = await _evolutionClient.GetQrCodeAsync(instance.SessionName);
-        instance.SetConnected();
+
+        // Aguardando o scan — quem confirma a conexão de fato é o GetStatusAsync,
+        // consultando a Evolution.
+        instance.SetConnecting();
         await _context.SaveChangesAsync(CancellationToken.None);
 
         return new QrCodeResponse(Convert.ToBase64String(qrCodeBytes));
@@ -108,34 +124,50 @@ public class InstanceService : IInstanceService
 
     public async Task<ConnectionStatusResponse> GetStatusAsync(Guid id)
     {
-        var instance = await _context.Instances.FindAsync(id)
+        var instance = await _context.Instances.FirstOrDefaultAsync(i => i.Id == id)
             ?? throw new InvalidOperationException("Instância não encontrada.");
 
         try
         {
             var status = await _evolutionClient.GetConnectionStatusAsync(instance.SessionName);
+
+            // A Evolution é a fonte da verdade: sincroniza o que guardamos.
+            if (status.Equals("open", StringComparison.OrdinalIgnoreCase))
+                instance.SetConnected();
+            else if (status.Equals("close", StringComparison.OrdinalIgnoreCase))
+                instance.SetDisconnected();
+
+            await _context.SaveChangesAsync(CancellationToken.None);
             return new ConnectionStatusResponse(status);
         }
-        catch
+        catch (Exception ex)
         {
+            // Degrada para o último estado conhecido em vez de derrubar a tela, mas
+            // registra: sem isso, uma Evolution fora do ar parecia só "desconectado".
+            _logger.LogWarning(ex,
+                "Evolution API indisponível ao consultar status de {SessionName}. " +
+                "Retornando último estado conhecido: {Status}", instance.SessionName, instance.Status);
+
             return new ConnectionStatusResponse(instance.Status.ToString());
         }
     }
 
     public async Task<bool> ConnectAsync(Guid id)
     {
-        var instance = await _context.Instances.FindAsync(id);
+        var instance = await _context.Instances.FirstOrDefaultAsync(i => i.Id == id);
         if (instance is null) return false;
 
         await _evolutionClient.ConnectInstanceAsync(instance.SessionName);
-        instance.SetConnected();
+
+        // Só inicia o pareamento — a conexão real depende do scan do QR Code.
+        instance.SetConnecting();
         await _context.SaveChangesAsync(CancellationToken.None);
         return true;
     }
 
     public async Task<bool> DisconnectAsync(Guid id)
     {
-        var instance = await _context.Instances.FindAsync(id);
+        var instance = await _context.Instances.FirstOrDefaultAsync(i => i.Id == id);
         if (instance is null) return false;
 
         await _evolutionClient.DisconnectInstanceAsync(instance.SessionName);

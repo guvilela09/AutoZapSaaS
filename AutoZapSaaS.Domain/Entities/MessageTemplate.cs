@@ -2,7 +2,7 @@ using AutoZapSaaS.Domain.Enums;
 
 namespace AutoZapSaaS.Domain.Entities;
 
-public class MessageTemplate : Entity
+public class MessageTemplate : Entity, ITenantEntity
 {
     public Guid TenantId { get; private set; }
     public string Name { get; private set; }

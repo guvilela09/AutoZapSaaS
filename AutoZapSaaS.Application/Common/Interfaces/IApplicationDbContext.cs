@@ -12,6 +12,7 @@ public interface IApplicationDbContext
     DbSet<WebhookEvent> WebhookEvents { get; }
     DbSet<MessageTemplate> MessageTemplates { get; }
     DbSet<WhatsAppMessage> WhatsAppMessages { get; }
+    DbSet<WebhookIntegration> WebhookIntegrations { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
