@@ -22,6 +22,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<MessageTemplate> MessageTemplates => Set<MessageTemplate>();
     public DbSet<WhatsAppMessage> WhatsAppMessages => Set<WhatsAppMessage>();
     public DbSet<WebhookIntegration> WebhookIntegrations => Set<WebhookIntegration>();
+    public DbSet<Subscription> Subscriptions => Set<Subscription>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -127,6 +128,22 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
              .OnDelete(DeleteBehavior.Cascade);
         });
 
+        modelBuilder.Entity<Subscription>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.Property(s => s.AsaasSubscriptionId).HasMaxLength(100);
+            e.Property(s => s.AsaasCustomerId).HasMaxLength(100);
+
+            // Um tenant, uma assinatura.
+            e.HasIndex(s => s.TenantId).IsUnique();
+            e.HasIndex(s => s.AsaasSubscriptionId);
+
+            e.HasOne(s => s.Tenant)
+             .WithMany()
+             .HasForeignKey(s => s.TenantId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
         ApplyTenantFilters(modelBuilder);
     }
 
@@ -144,6 +161,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
         modelBuilder.Entity<MessageTemplate>().HasQueryFilter(t => t.TenantId == _tenantContext.TenantId);
         modelBuilder.Entity<WhatsAppMessage>().HasQueryFilter(m => m.TenantId == _tenantContext.TenantId);
         modelBuilder.Entity<WebhookIntegration>().HasQueryFilter(w => w.TenantId == _tenantContext.TenantId);
+        modelBuilder.Entity<Subscription>().HasQueryFilter(s => s.TenantId == _tenantContext.TenantId);
         modelBuilder.Entity<WebhookEvent>().HasQueryFilter(w => w.TenantId == _tenantContext.TenantId);
     }
 

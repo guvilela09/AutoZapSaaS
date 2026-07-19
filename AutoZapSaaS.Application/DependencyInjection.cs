@@ -21,6 +21,8 @@ public static class DependencyInjection
 
         services.AddSingleton<IWebhookSignatureValidator, WebhookSignatureValidator>();
         services.AddScoped<IWebhookIntegrationService, WebhookIntegrationService>();
+        services.AddScoped<IPlanLimitService, PlanLimitService>();
+        services.AddScoped<ISubscriptionService, SubscriptionService>();
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ITenantService, TenantService>();

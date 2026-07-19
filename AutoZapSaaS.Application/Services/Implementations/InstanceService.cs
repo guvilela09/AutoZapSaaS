@@ -12,23 +12,28 @@ public class InstanceService : IInstanceService
 {
     private readonly IApplicationDbContext _context;
     private readonly IEvolutionApiClient _evolutionClient;
+    private readonly IPlanLimitService _planLimits;
     private readonly IMapper _mapper;
     private readonly ILogger<InstanceService> _logger;
 
     public InstanceService(
         IApplicationDbContext context,
         IEvolutionApiClient evolutionClient,
+        IPlanLimitService planLimits,
         IMapper mapper,
         ILogger<InstanceService> logger)
     {
         _context = context;
         _evolutionClient = evolutionClient;
+        _planLimits = planLimits;
         _mapper = mapper;
         _logger = logger;
     }
 
     public async Task<InstanceResponse> CreateAsync(Guid tenantId, CreateInstanceRequest request)
     {
+        await _planLimits.GarantirPodeCriarInstanciaAsync(tenantId);
+
         var instance = new Instance(tenantId, request.Name, request.SessionName, request.Token);
         _context.Instances.Add(instance);
         await _context.SaveChangesAsync(CancellationToken.None);

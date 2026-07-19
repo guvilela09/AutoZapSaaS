@@ -38,6 +38,9 @@ public class TenantService : ITenantService
         var user = new SystemUser(tenant.Id, request.AdminEmail, passwordHash, "Admin");
         _context.SystemUsers.Add(user);
 
+        // Todo tenant nasce no Free: sem assinatura, os limites ficariam indefinidos.
+        _context.Subscriptions.Add(Subscription.Gratuita(tenant.Id));
+
         await _context.SaveChangesAsync(CancellationToken.None);
 
         _logger.LogInformation("Tenant criado: {TenantId} - {TenantName}", tenant.Id, tenant.Name);

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AutoMapper;
+using AutoZapSaaS.Application.Common;
 using AutoZapSaaS.Application.Common.Interfaces;
 using AutoZapSaaS.Application.DTOs;
 using AutoZapSaaS.Application.Services.Interfaces;
@@ -15,17 +16,20 @@ public class WebhookService : IWebhookService
     private readonly IApplicationDbContext _context;
     private readonly IMapper _mapper;
     private readonly IEvolutionApiClient _evolutionClient;
+    private readonly IPlanLimitService _planLimits;
     private readonly ILogger<WebhookService> _logger;
 
     public WebhookService(
         IApplicationDbContext context,
         IMapper mapper,
         IEvolutionApiClient evolutionClient,
+        IPlanLimitService planLimits,
         ILogger<WebhookService> logger)
     {
         _context = context;
         _mapper = mapper;
         _evolutionClient = evolutionClient;
+        _planLimits = planLimits;
         _logger = logger;
     }
 
@@ -166,6 +170,24 @@ public class WebhookService : IWebhookService
                 : $"Olá {name}! Seu pedido na {origin} foi confirmado com sucesso. Qualquer dúvida, é só responder por aqui!";
 
             var message = new WhatsAppMessage(tenantId, instance.Id, customer.Id, phone, body);
+
+            try
+            {
+                // Cota estourada não pode virar erro HTTP: a plataforma de vendas
+                // reenviaria o webhook indefinidamente. Registra como falha e sai.
+                await _planLimits.ConsumirMensagemAsync(tenantId);
+            }
+            catch (PlanLimitException ex)
+            {
+                message.MarkFailed(ex.Message);
+                _context.WhatsAppMessages.Add(message);
+                await _context.SaveChangesAsync(CancellationToken.None);
+
+                _logger.LogWarning(
+                    "Mensagem não enviada para {Phone}: cota do plano do tenant {TenantId} esgotada",
+                    phone, tenantId);
+                return;
+            }
 
             try
             {

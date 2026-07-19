@@ -33,7 +33,8 @@ public class InstanceFailureHandlingTests
     private (InstanceService servico, ApplicationDbContext ctx) Montar(IEvolutionApiClient client)
     {
         var ctx = new ApplicationDbContext(_options, new FakeTenantContext(_tenantId));
-        return (new InstanceService(ctx, client, _mapper, NullLogger<InstanceService>.Instance), ctx);
+        var limites = new PlanLimitService(ctx, NullLogger<PlanLimitService>.Instance);
+        return (new InstanceService(ctx, client, limites, _mapper, NullLogger<InstanceService>.Instance), ctx);
     }
 
     [Fact]

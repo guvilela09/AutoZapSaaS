@@ -13,17 +13,20 @@ public class WhatsAppService : IWhatsAppService
 {
     private readonly IApplicationDbContext _context;
     private readonly IEvolutionApiClient _evolutionClient;
+    private readonly IPlanLimitService _planLimits;
     private readonly IMapper _mapper;
     private readonly ILogger<WhatsAppService> _logger;
 
     public WhatsAppService(
         IApplicationDbContext context,
         IEvolutionApiClient evolutionClient,
+        IPlanLimitService planLimits,
         IMapper mapper,
         ILogger<WhatsAppService> logger)
     {
         _context = context;
         _evolutionClient = evolutionClient;
+        _planLimits = planLimits;
         _mapper = mapper;
         _logger = logger;
     }
@@ -40,6 +43,8 @@ public class WhatsAppService : IWhatsAppService
         // Envio avulso: o telefone pode não corresponder a nenhum cliente cadastrado.
         var customerId = (await _context.Customers
             .FirstOrDefaultAsync(c => c.PhoneNumber == request.PhoneNumber))?.Id;
+
+        await _planLimits.ConsumirMensagemAsync(tenantId);
 
         var message = new WhatsAppMessage(tenantId, instance.Id, customerId, request.PhoneNumber, request.Message);
 
@@ -83,6 +88,8 @@ public class WhatsAppService : IWhatsAppService
             ?? throw new InvalidOperationException("Template não encontrado.");
 
         var body = template.Render(customer.Name, $"Mensagem automática");
+        await _planLimits.ConsumirMensagemAsync(tenantId);
+
         var message = new WhatsAppMessage(tenantId, instance.Id, customer.Id, customer.PhoneNumber, body);
 
         try
