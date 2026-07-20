@@ -28,6 +28,10 @@ public class CreateMessageTemplateValidator : AbstractValidator<CreateMessageTem
     {
         RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
         RuleFor(x => x.EventType).NotEmpty();
-        RuleFor(x => x.Body).NotEmpty().MaximumLength(4096);
+        // 4096 e o limite do WhatsApp para mensagem de texto; cortar aqui evita
+        // descobrir isso so na hora do envio.
+        RuleFor(x => x.Body)
+            .NotEmpty().WithMessage("Escreva o texto da mensagem.")
+            .MaximumLength(4096).WithMessage("A mensagem excede o limite de 4096 caracteres do WhatsApp.");
     }
 }

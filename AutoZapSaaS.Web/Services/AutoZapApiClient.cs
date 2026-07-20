@@ -221,6 +221,13 @@ public class AutoZapApiClient
 
             if (!string.IsNullOrWhiteSpace(erro?.Error))
                 return new ApiException(erro.Error, codigo, erro.PlanoAtual, erro.PlanoSugerido);
+
+            // Falha de validacao vem como ValidationProblemDetails, com as mensagens
+            // dentro de "errors" e nao em "error". Sem tratar esse formato, o lojista
+            // veria "erro inesperado" no lugar de "a senha precisa ter 8 caracteres".
+            var mensagensDeValidacao = ExtrairMensagensDeValidacao(corpo);
+            if (mensagensDeValidacao is not null)
+                return new ApiException(mensagensDeValidacao, codigo);
         }
         catch (JsonException)
         {
@@ -236,5 +243,30 @@ public class AutoZapApiClient
         };
 
         return new ApiException(mensagem, codigo);
+    }
+
+    /// <summary>
+    /// Junta as mensagens de ValidationProblemDetails numa frase so. Devolve null
+    /// quando o corpo nao tem esse formato.
+    /// </summary>
+    private static string? ExtrairMensagensDeValidacao(string corpo)
+    {
+        using var documento = JsonDocument.Parse(corpo);
+
+        if (!documento.RootElement.TryGetProperty("errors", out var erros) ||
+            erros.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        var mensagens = erros.EnumerateObject()
+            .SelectMany(campo => campo.Value.ValueKind == JsonValueKind.Array
+                ? campo.Value.EnumerateArray().Select(m => m.GetString())
+                : new[] { campo.Value.GetString() })
+            .Where(m => !string.IsNullOrWhiteSpace(m))
+            .Distinct()
+            .ToList();
+
+        return mensagens.Count > 0 ? string.Join(" ", mensagens) : null;
     }
 }

@@ -10,7 +10,12 @@ using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+{
+    // Faz os validators do FluentValidation rodarem de fato. Sem isso eles ficam
+    // registrados no container e nunca sao chamados.
+    options.Filters.Add<ValidacaoFilter>();
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -156,6 +161,9 @@ if (app.Environment.IsDevelopment())
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "AutoZap SaaS API v1");
     });
 }
+
+// Primeiro do pipeline: qualquer excecao abaixo vira resposta limpa, sem stack.
+app.UseMiddleware<TratamentoDeErros>();
 
 app.UseHttpsRedirection();
 app.UseCors();
