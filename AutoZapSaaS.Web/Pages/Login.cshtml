@@ -1,0 +1,39 @@
+@page
+@model LoginModel
+@{ ViewData["Title"] = "Entrar"; }
+
+<div class="caixa-login">
+    <div class="marca">
+        <span class="marca-icone">⚡</span>
+        <span class="marca-nome">AutoZap</span>
+    </div>
+
+    <div class="cartao">
+        <h2>Entrar na sua conta</h2>
+
+        @if (!string.IsNullOrEmpty(Model.Erro))
+        {
+            <div class="aviso aviso-erro">@Model.Erro</div>
+        }
+
+        <form method="post">
+            <div class="campo">
+                <label asp-for="Entrada.Email">E-mail</label>
+                <input asp-for="Entrada.Email" type="email" autocomplete="username" autofocus />
+                <span asp-validation-for="Entrada.Email" class="dica"></span>
+            </div>
+
+            <div class="campo">
+                <label asp-for="Entrada.Senha">Senha</label>
+                <input asp-for="Entrada.Senha" type="password" autocomplete="current-password" />
+                <span asp-validation-for="Entrada.Senha" class="dica"></span>
+            </div>
+
+            <button type="submit" class="botao botao-largo">Entrar</button>
+        </form>
+    </div>
+
+    <div class="rodape-form">
+        Ainda não tem conta? <a asp-page="/Cadastro">Criar conta grátis</a>
+    </div>
+</div>

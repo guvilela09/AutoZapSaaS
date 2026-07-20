@@ -48,8 +48,7 @@ public class AutoZapApiClient
 
     // ---------- Autenticacao ----------
 
-    public Task<LoginResponse> LoginAsync(string email, string senha) =>
-        PostAnonimoAsync<LoginResponse>("/api/auth/login", new { email, password = senha });
+    public Task<LoginResponse> LoginAsync(string email, string senha) => PostAnonimoAsync<LoginResponse>("/api/auth/login", new { email, password = senha });
 
     public Task<LoginResponse> RegistrarAsync(
         string nomeEmpresa, string emailEmpresa, string documento, string emailAdmin, string senhaAdmin) =>
@@ -64,82 +63,59 @@ public class AutoZapApiClient
 
     // ---------- Instancias ----------
 
-    public Task<List<InstanceResponse>> ListarInstanciasAsync() =>
-        GetAsync<List<InstanceResponse>>("/api/instances");
+    public Task<List<InstanceResponse>> ListarInstanciasAsync() => GetAsync<List<InstanceResponse>>("/api/instances");
 
-    public Task<InstanceResponse> CriarInstanciaAsync(string nome, string sessao, string token) =>
-        PostAsync<InstanceResponse>("/api/instances", new { name = nome, sessionName = sessao, token });
+    public Task<InstanceResponse> CriarInstanciaAsync(string nome, string sessao, string token) => PostAsync<InstanceResponse>("/api/instances", new { name = nome, sessionName = sessao, token });
 
-    public Task<QrCodeResponse> ObterQrCodeAsync(Guid id) =>
-        GetAsync<QrCodeResponse>($"/api/instances/{id}/qrcode");
+    public Task<QrCodeResponse> ObterQrCodeAsync(Guid id) => GetAsync<QrCodeResponse>($"/api/instances/{id}/qrcode");
 
-    public Task<ConnectionStatusResponse> ObterStatusAsync(Guid id) =>
-        GetAsync<ConnectionStatusResponse>($"/api/instances/{id}/status");
+    public Task<ConnectionStatusResponse> ObterStatusAsync(Guid id) => GetAsync<ConnectionStatusResponse>($"/api/instances/{id}/status");
 
     public Task RemoverInstanciaAsync(Guid id) => DeleteAsync($"/api/instances/{id}");
 
-    public Task DesconectarInstanciaAsync(Guid id) =>
-        PostSemRetornoAsync($"/api/instances/{id}/disconnect", new { });
+    public Task DesconectarInstanciaAsync(Guid id) => PostSemRetornoAsync($"/api/instances/{id}/disconnect", new { });
 
     // ---------- Clientes ----------
 
-    public Task<List<CustomerResponse>> ListarClientesAsync() =>
-        GetAsync<List<CustomerResponse>>("/api/customers");
+    public Task<List<CustomerResponse>> ListarClientesAsync() => GetAsync<List<CustomerResponse>>("/api/customers");
 
-    public Task<CustomerResponse> CriarClienteAsync(string nome, string telefone, string email, string origem) =>
-        PostAsync<CustomerResponse>("/api/customers",
-            new { name = nome, phoneNumber = telefone, email, origin = origem });
+    public Task<CustomerResponse> CriarClienteAsync(string nome, string telefone, string email, string origem) => PostAsync<CustomerResponse>("/api/customers", new { name = nome, phoneNumber = telefone, email, origin = origem });
 
     public Task RemoverClienteAsync(Guid id) => DeleteAsync($"/api/customers/{id}");
 
     // ---------- Templates ----------
 
-    public Task<List<MessageTemplateResponse>> ListarTemplatesAsync() =>
-        GetAsync<List<MessageTemplateResponse>>("/api/templates");
+    public Task<List<MessageTemplateResponse>> ListarTemplatesAsync() => GetAsync<List<MessageTemplateResponse>>("/api/templates");
 
-    public Task<MessageTemplateResponse> CriarTemplateAsync(string nome, string evento, string corpo) =>
-        PostAsync<MessageTemplateResponse>("/api/templates",
-            new { name = nome, eventType = evento, body = corpo });
+    public Task<MessageTemplateResponse> CriarTemplateAsync(string nome, string evento, string corpo) => PostAsync<MessageTemplateResponse>("/api/templates", new { name = nome, eventType = evento, body = corpo });
 
     public Task RemoverTemplateAsync(Guid id) => DeleteAsync($"/api/templates/{id}");
 
     // ---------- Mensagens ----------
 
-    public Task<List<WhatsAppMessageResponse>> ListarMensagensAsync() =>
-        GetAsync<List<WhatsAppMessageResponse>>("/api/whatsapp/messages");
+    public Task<List<WhatsAppMessageResponse>> ListarMensagensAsync() => GetAsync<List<WhatsAppMessageResponse>>("/api/whatsapp/messages");
 
-    public Task EnviarMensagemAsync(Guid instanciaId, string telefone, string mensagem) =>
-        PostSemRetornoAsync("/api/whatsapp/send",
-            new { instanceId = instanciaId, phoneNumber = telefone, message = mensagem });
+    public Task EnviarMensagemAsync(Guid instanciaId, string telefone, string mensagem) => PostSemRetornoAsync("/api/whatsapp/send",new { instanceId = instanciaId, phoneNumber = telefone, message = mensagem });
 
     // ---------- Webhooks ----------
 
-    public Task<List<WebhookIntegrationResponse>> ListarIntegracoesAsync() =>
-        GetAsync<List<WebhookIntegrationResponse>>("/api/webhook-integrations");
+    public Task<List<WebhookIntegrationResponse>> ListarIntegracoesAsync() => GetAsync<List<WebhookIntegrationResponse>>("/api/webhook-integrations");
 
-    public Task<WebhookIntegrationResponse> CriarIntegracaoAsync(string plataforma, string segredo) =>
-        PostAsync<WebhookIntegrationResponse>("/api/webhook-integrations",
-            new { platform = plataforma, secret = segredo });
+    public Task<WebhookIntegrationResponse> CriarIntegracaoAsync(string plataforma, string segredo) => PostAsync<WebhookIntegrationResponse>("/api/webhook-integrations", new { platform = plataforma, secret = segredo });
 
-    public Task<WebhookIntegrationResponse> GirarTokenAsync(Guid id) =>
-        PostAsync<WebhookIntegrationResponse>($"/api/webhook-integrations/{id}/rotate-token", new { });
+    public Task<WebhookIntegrationResponse> GirarTokenAsync(Guid id) => PostAsync<WebhookIntegrationResponse>($"/api/webhook-integrations/{id}/rotate-token", new { });
 
     public Task RemoverIntegracaoAsync(Guid id) => DeleteAsync($"/api/webhook-integrations/{id}");
 
     // ---------- Assinatura ----------
 
-    public Task<List<PlanoResponse>> ListarPlanosAsync() =>
-        GetAsync<List<PlanoResponse>>("/api/subscription/plans");
+    public Task<List<PlanoResponse>> ListarPlanosAsync() => GetAsync<List<PlanoResponse>>("/api/subscription/plans");
 
-    public Task<AssinaturaResponse> ObterAssinaturaAsync() =>
-        GetAsync<AssinaturaResponse>("/api/subscription");
+    public Task<AssinaturaResponse> ObterAssinaturaAsync() => GetAsync<AssinaturaResponse>("/api/subscription");
 
-    public Task<AssinaturaResponse> AssinarAsync(string tier, string formaPagamento) =>
-        PostAsync<AssinaturaResponse>("/api/subscription",
-            new { tier, formaPagamento });
+    public Task<AssinaturaResponse> AssinarAsync(string tier, string formaPagamento) => PostAsync<AssinaturaResponse>("/api/subscription", new { tier, formaPagamento });
 
-    public Task<AssinaturaResponse> CancelarAssinaturaAsync() =>
-        DeleteAsync<AssinaturaResponse>("/api/subscription");
+    public Task<AssinaturaResponse> CancelarAssinaturaAsync() => DeleteAsync<AssinaturaResponse>("/api/subscription");
 
     // ---------- Infra ----------
 

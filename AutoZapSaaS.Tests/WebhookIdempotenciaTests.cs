@@ -1,7 +1,5 @@
 using System.Text.Json;
-using AutoMapper;
 using AutoZapSaaS.Application.Common.Interfaces;
-using AutoZapSaaS.Application.Mappings;
 using AutoZapSaaS.Application.Services.Implementations;
 using AutoZapSaaS.Domain.Entities;
 using AutoZapSaaS.Domain.Enums;
@@ -19,7 +17,6 @@ namespace AutoZapSaaS.Tests;
 public class WebhookIdempotenciaTests
 {
     private readonly DbContextOptions<ApplicationDbContext> _options;
-    private readonly IMapper _mapper;
     private readonly Guid _tenantId = Guid.NewGuid();
 
     private const string Payload =
@@ -30,8 +27,6 @@ public class WebhookIdempotenciaTests
         _options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase($"autozap-idem-{Guid.NewGuid()}")
             .Options;
-
-        _mapper = new MapperConfiguration(cfg => cfg.AddProfile<AutoMapperProfile>()).CreateMapper();
 
         using var seed = new ApplicationDbContext(_options, new FakeTenantContext(_tenantId));
         var tenant = new Tenant("Loja", "loja@teste.com", "123");
@@ -52,7 +47,7 @@ public class WebhookIdempotenciaTests
         var evolution = new EvolutionSpy();
         var limites = new PlanLimitService(ctx, NullLogger<PlanLimitService>.Instance);
 
-        return (new WebhookService(ctx, _mapper, evolution, limites, NullLogger<WebhookService>.Instance),
+        return (new WebhookService(ctx,  evolution, limites, NullLogger<WebhookService>.Instance),
                 evolution, ctx);
     }
 

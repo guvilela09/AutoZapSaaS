@@ -1,6 +1,6 @@
-using AutoMapper;
 using AutoZapSaaS.Application.Common.Interfaces;
 using AutoZapSaaS.Application.DTOs;
+using AutoZapSaaS.Application.Mappings;
 using AutoZapSaaS.Application.Services.Interfaces;
 using AutoZapSaaS.Domain.Entities;
 using AutoZapSaaS.Domain.Enums;
@@ -14,20 +14,17 @@ public class WhatsAppService : IWhatsAppService
     private readonly IApplicationDbContext _context;
     private readonly IEvolutionApiClient _evolutionClient;
     private readonly IPlanLimitService _planLimits;
-    private readonly IMapper _mapper;
     private readonly ILogger<WhatsAppService> _logger;
 
     public WhatsAppService(
         IApplicationDbContext context,
         IEvolutionApiClient evolutionClient,
         IPlanLimitService planLimits,
-        IMapper mapper,
         ILogger<WhatsAppService> logger)
     {
         _context = context;
         _evolutionClient = evolutionClient;
         _planLimits = planLimits;
-        _mapper = mapper;
         _logger = logger;
     }
 
@@ -67,7 +64,7 @@ public class WhatsAppService : IWhatsAppService
         _context.WhatsAppMessages.Add(message);
         await _context.SaveChangesAsync(CancellationToken.None);
 
-        return _mapper.Map<WhatsAppMessageResponse>(message);
+        return message.ParaResposta();
     }
 
     public async Task<WhatsAppMessageResponse> SendTemplateAsync(Guid tenantId, SendTemplateMessageRequest request)
@@ -111,7 +108,7 @@ public class WhatsAppService : IWhatsAppService
         _context.WhatsAppMessages.Add(message);
         await _context.SaveChangesAsync(CancellationToken.None);
 
-        return _mapper.Map<WhatsAppMessageResponse>(message);
+        return message.ParaResposta();
     }
 
     public async Task<List<WhatsAppMessageResponse>> GetMessagesAsync(Guid tenantId)
@@ -123,7 +120,7 @@ public class WhatsAppService : IWhatsAppService
             .Take(200)
             .ToListAsync();
 
-        return _mapper.Map<List<WhatsAppMessageResponse>>(messages);
+        return messages.ParaRespostas(e => e.ParaResposta());
     }
 
     public async Task ProcessPendingMessagesAsync()

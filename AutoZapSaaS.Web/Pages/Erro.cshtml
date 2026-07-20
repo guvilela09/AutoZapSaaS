@@ -1,0 +1,28 @@
+@page
+@model ErroModel
+@{
+    ViewData["Title"] = "Erro";
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Erro · AutoZap</title>
+    <link rel="stylesheet" href="~/css/site.css" />
+</head>
+<body class="tela-limpa">
+    <main class="centralizado">
+        <div class="caixa-login">
+            <div class="cartao" style="text-align:center">
+                <h2>Algo deu errado</h2>
+                <p class="dica" style="margin-bottom:18px">
+                    O erro foi registrado. Tente novamente em alguns instantes.
+                </p>
+                <a class="botao" asp-page="/Index">Voltar ao painel</a>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

@@ -13,25 +13,12 @@ services:
     networks:
       - autozap-network
 
-  rabbitmq:
-    image: rabbitmq:3-management-alpine
-    container_name: autozap-rabbitmq
-    environment:
-      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:?defina RABBITMQ_USER no .env}
-      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:?defina RABBITMQ_PASSWORD no .env}
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    networks:
-      - autozap-network
-
   evolution-api:
     # Repositorio oficial atual. O antigo atendai/evolution-api saiu do ar.
     # Versao fixada de proposito: 'latest' ja quebrou o ambiente uma vez.
     image: evoapicloud/evolution-api:v2.3.7
     container_name: autozap-evolution
     depends_on:
-      - rabbitmq
       - postgres
     environment:
       - SERVER_TYPE=http
@@ -40,8 +27,6 @@ services:
       - DATABASE_ENABLED=true
       - DATABASE_PROVIDER=postgresql
       - DATABASE_CONNECTION_URI=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/evolution
-      - RABBITMQ_ENABLED=true
-      - RABBITMQ_URI=amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
       - WEBSOCKET_ENABLED=true
     ports:
       # 8081 no host: a 8080 pode ter outra Evolution rodando fora deste compose.

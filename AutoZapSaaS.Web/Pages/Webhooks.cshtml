@@ -1,0 +1,89 @@
+@page
+@model WebhooksModel
+@{ ViewData["Title"] = "Integrações"; }
+
+<h1>Integrações</h1>
+<p class="subtitulo">Ligue sua plataforma de vendas para o AutoZap disparar mensagens a cada pedido.</p>
+
+<div class="cartao">
+    <h2>Nova integração</h2>
+    <form method="post" asp-page-handler="Criar">
+        <div class="grade grade-2">
+            <div class="campo">
+                <label asp-for="Plataforma">Plataforma</label>
+                <select asp-for="Plataforma">
+                    @foreach (var p in WebhooksModel.Plataformas)
+                    {
+                        <option value="@p.Valor">@p.Rotulo</option>
+                    }
+                </select>
+            </div>
+
+            <div class="campo">
+                <label asp-for="Segredo">Segredo de assinatura</label>
+                <input asp-for="Segredo" autocomplete="off" />
+                <p class="dica">
+                    O mesmo valor configurado na plataforma. É ele que comprova
+                    que o webhook veio mesmo dela.
+                </p>
+            </div>
+        </div>
+
+        <button type="submit" class="botao">Criar integração</button>
+    </form>
+</div>
+
+<div class="cartao">
+    <h2>Suas integrações</h2>
+
+    @if (!Model.Integracoes.Any())
+    {
+        <div class="vazio">
+            <p>Nenhuma integração configurada.</p>
+            <p class="dica">Sem isso, o AutoZap não fica sabendo dos pedidos da sua loja.</p>
+        </div>
+    }
+    else
+    {
+        @foreach (var i in Model.Integracoes)
+        {
+            <div style="padding:16px 0; border-bottom:1px solid #eef2f0">
+                <div class="linha-acoes" style="justify-content:space-between; margin-bottom:10px">
+                    <div>
+                        <strong>@i.Platform</strong>
+                        <span class="selo @(i.IsActive ? "selo-ok" : "selo-neutro")" style="margin-left:8px">
+                            @(i.IsActive ? "Ativa" : "Inativa")
+                        </span>
+                    </div>
+
+                    <div class="linha-acoes">
+                        <form method="post" asp-page-handler="Girar" asp-route-id="@i.Id"
+                              onsubmit="return confirm('Gerar novo endereço? A URL atual para de funcionar até você atualizá-la na plataforma.');">
+                            <button type="submit" class="botao botao-secundario botao-pequeno">Gerar novo endereço</button>
+                        </form>
+                        <form method="post" asp-page-handler="Remover" asp-route-id="@i.Id"
+                              onsubmit="return confirm('Remover esta integração? Os pedidos dessa plataforma deixam de gerar mensagens.');">
+                            <button type="submit" class="botao botao-perigo botao-pequeno">Remover</button>
+                        </form>
+                    </div>
+                </div>
+
+                <label class="dica" style="display:block; margin-bottom:4px">
+                    Cadastre esta URL em: @WebhooksModel.OndeConfigurar(i.Platform)
+                </label>
+                <code class="url-webhook">@i.WebhookUrl</code>
+
+                <p class="dica" style="margin-top:8px">
+                    @if (i.LastReceivedAt is not null)
+                    {
+                        <text>Último pedido recebido em @i.LastReceivedAt.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</text>
+                    }
+                    else
+                    {
+                        <text>Nenhum pedido recebido ainda por esta integração.</text>
+                    }
+                </p>
+            </div>
+        }
+    }
+</div>

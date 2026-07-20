@@ -1,6 +1,6 @@
-using AutoMapper;
 using AutoZapSaaS.Application.Common.Interfaces;
 using AutoZapSaaS.Application.DTOs;
+using AutoZapSaaS.Application.Mappings;
 using AutoZapSaaS.Application.Services.Interfaces;
 using AutoZapSaaS.Domain.Entities;
 using AutoZapSaaS.Domain.Enums;
@@ -12,13 +12,11 @@ namespace AutoZapSaaS.Application.Services.Implementations;
 public class MessageTemplateService : IMessageTemplateService
 {
     private readonly IApplicationDbContext _context;
-    private readonly IMapper _mapper;
     private readonly ILogger<MessageTemplateService> _logger;
 
-    public MessageTemplateService(IApplicationDbContext context, IMapper mapper, ILogger<MessageTemplateService> logger)
+    public MessageTemplateService(IApplicationDbContext context, ILogger<MessageTemplateService> logger)
     {
         _context = context;
-        _mapper = mapper;
         _logger = logger;
     }
 
@@ -32,13 +30,13 @@ public class MessageTemplateService : IMessageTemplateService
         await _context.SaveChangesAsync(CancellationToken.None);
 
         _logger.LogInformation("Template criado: {TemplateId} - {Name}", template.Id, template.Name);
-        return _mapper.Map<MessageTemplateResponse>(template);
+        return template.ParaResposta();
     }
 
     public async Task<MessageTemplateResponse?> GetByIdAsync(Guid id)
     {
         var template = await _context.MessageTemplates.FirstOrDefaultAsync(t => t.Id == id);
-        return template is null ? null : _mapper.Map<MessageTemplateResponse>(template);
+        return template is null ? null : template.ParaResposta();
     }
 
     public async Task<List<MessageTemplateResponse>> GetByTenantAsync(Guid tenantId)
@@ -48,7 +46,7 @@ public class MessageTemplateService : IMessageTemplateService
             .OrderBy(t => t.Name)
             .ToListAsync();
 
-        return _mapper.Map<List<MessageTemplateResponse>>(templates);
+        return templates.ParaRespostas(e => e.ParaResposta());
     }
 
     public async Task<MessageTemplateResponse?> UpdateAsync(Guid id, UpdateMessageTemplateRequest request)
@@ -64,7 +62,7 @@ public class MessageTemplateService : IMessageTemplateService
         template.SetUpdatedAt();
 
         await _context.SaveChangesAsync(CancellationToken.None);
-        return _mapper.Map<MessageTemplateResponse>(template);
+        return template.ParaResposta();
     }
 
     public async Task<bool> DeleteAsync(Guid id)

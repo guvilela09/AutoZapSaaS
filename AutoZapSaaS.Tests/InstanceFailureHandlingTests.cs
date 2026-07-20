@@ -1,8 +1,6 @@
-using AutoMapper;
 using AutoZapSaaS.Application.Common;
 using AutoZapSaaS.Application.Common.Interfaces;
 using AutoZapSaaS.Application.DTOs;
-using AutoZapSaaS.Application.Mappings;
 using AutoZapSaaS.Application.Services.Implementations;
 using AutoZapSaaS.Domain.Entities;
 using AutoZapSaaS.Infrastructure.Persistence;
@@ -18,7 +16,6 @@ namespace AutoZapSaaS.Tests;
 public class InstanceFailureHandlingTests
 {
     private readonly DbContextOptions<ApplicationDbContext> _options;
-    private readonly IMapper _mapper;
     private readonly Guid _tenantId = Guid.NewGuid();
 
     public InstanceFailureHandlingTests()
@@ -26,15 +23,13 @@ public class InstanceFailureHandlingTests
         _options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase($"autozap-falhas-{Guid.NewGuid()}")
             .Options;
-
-        _mapper = new MapperConfiguration(cfg => cfg.AddProfile<AutoMapperProfile>()).CreateMapper();
     }
 
     private (InstanceService servico, ApplicationDbContext ctx) Montar(IEvolutionApiClient client)
     {
         var ctx = new ApplicationDbContext(_options, new FakeTenantContext(_tenantId));
         var limites = new PlanLimitService(ctx, NullLogger<PlanLimitService>.Instance);
-        return (new InstanceService(ctx, client, limites, _mapper, NullLogger<InstanceService>.Instance), ctx);
+        return (new InstanceService(ctx, client, limites,  NullLogger<InstanceService>.Instance), ctx);
     }
 
     [Fact]

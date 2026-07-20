@@ -1,4 +1,3 @@
-using AutoMapper;
 using AutoZapSaaS.Application.Common.Interfaces;
 using AutoZapSaaS.Application.DTOs;
 using AutoZapSaaS.Application.Services.Interfaces;
@@ -11,13 +10,11 @@ public class AuthService : IAuthService
 {
     private readonly IApplicationDbContext _context;
     private readonly IJwtService _jwtService;
-    private readonly IMapper _mapper;
 
-    public AuthService(IApplicationDbContext context, IJwtService jwtService, IMapper mapper)
+    public AuthService(IApplicationDbContext context, IJwtService jwtService)
     {
         _context = context;
         _jwtService = jwtService;
-        _mapper = mapper;
     }
 
     public async Task<LoginResponse> LoginAsync(LoginRequest request)

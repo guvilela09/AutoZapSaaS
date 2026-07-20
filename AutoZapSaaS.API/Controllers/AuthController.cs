@@ -1,11 +1,15 @@
 using AutoZapSaaS.Application.DTOs;
 using AutoZapSaaS.Application.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace AutoZapSaaS.API.Controllers;
 
 [ApiController]
 [Route("api/auth")]
+// Login e cadastro sao os alvos obvios de forca bruta e de criacao
+// automatizada de contas.
+[EnableRateLimiting("autenticacao")]
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;

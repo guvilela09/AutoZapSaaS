@@ -1,0 +1,60 @@
+@page
+@model CadastroModel
+@{ ViewData["Title"] = "Criar conta"; }
+
+<div class="caixa-login">
+    <div class="marca">
+        <span class="marca-icone">⚡</span>
+        <span class="marca-nome">AutoZap</span>
+    </div>
+
+    <div class="cartao">
+        <h2>Criar conta grátis</h2>
+        <p class="dica" style="margin-bottom:18px">
+            O plano Free inclui 1 número de WhatsApp e 100 mensagens por mês. Sem cartão.
+        </p>
+
+        @if (!string.IsNullOrEmpty(Model.Erro))
+        {
+            <div class="aviso aviso-erro">@Model.Erro</div>
+        }
+
+        <form method="post">
+            <div class="campo">
+                <label asp-for="Entrada.NomeEmpresa">Nome da loja</label>
+                <input asp-for="Entrada.NomeEmpresa" autofocus />
+                <span asp-validation-for="Entrada.NomeEmpresa" class="dica"></span>
+            </div>
+
+            <div class="campo">
+                <label asp-for="Entrada.EmailEmpresa">E-mail da loja</label>
+                <input asp-for="Entrada.EmailEmpresa" type="email" />
+                <span asp-validation-for="Entrada.EmailEmpresa" class="dica"></span>
+            </div>
+
+            <div class="campo">
+                <label asp-for="Entrada.Documento">CPF ou CNPJ</label>
+                <input asp-for="Entrada.Documento" />
+                <span asp-validation-for="Entrada.Documento" class="dica"></span>
+            </div>
+
+            <div class="campo">
+                <label asp-for="Entrada.EmailAdmin">Seu e-mail de acesso</label>
+                <input asp-for="Entrada.EmailAdmin" type="email" autocomplete="username" />
+                <span asp-validation-for="Entrada.EmailAdmin" class="dica"></span>
+            </div>
+
+            <div class="campo">
+                <label asp-for="Entrada.SenhaAdmin">Senha</label>
+                <input asp-for="Entrada.SenhaAdmin" type="password" autocomplete="new-password" />
+                <span asp-validation-for="Entrada.SenhaAdmin" class="dica"></span>
+            </div>
+
+            <button type="submit" class="botao botao-largo">Criar conta</button>
+        </form>
+    </div>
+
+    <div class="rodape-form">
+        Já tem conta? <a asp-page="/Login">Entrar</a>
+    </div>
+</div>

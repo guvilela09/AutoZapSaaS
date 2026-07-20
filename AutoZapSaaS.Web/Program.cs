@@ -1,7 +1,6 @@
 using AutoZapSaaS.Web.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,15 +14,19 @@ if (string.IsNullOrWhiteSpace(apiBaseUrl))
         "apontando para a AutoZap API (ex.: http://localhost:5000).");
 }
 
-// Exige login em tudo por padrao. Liberar exige [AllowAnonymous] explicito,
-// entao esquecer um [Authorize] deixa de expor tela.
-var exigirLogin = new AuthorizationPolicyBuilder()
-    .RequireAuthenticatedUser()
-    .Build();
-
-builder.Services.AddControllersWithViews(options =>
+builder.Services.AddRazorPages(options =>
 {
-    options.Filters.Add(new AuthorizeFilter(exigirLogin));
+    // Exige login em tudo; liberar exige excecao explicita aqui. Esquecer um
+    // [Authorize] numa pagina nova nao expoe tela.
+    options.Conventions.AuthorizeFolder("/");
+    options.Conventions.AllowAnonymousToPage("/Login");
+    options.Conventions.AllowAnonymousToPage("/Cadastro");
+    options.Conventions.AllowAnonymousToPage("/Erro");
+})
+.AddMvcOptions(options =>
+{
+    // Antiforgery em todo POST, sem depender de lembrar do atributo pagina a pagina.
+    options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
 });
 
 builder.Services.AddHttpContextAccessor();
@@ -38,9 +41,9 @@ builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
-        options.LoginPath = "/Conta/Login";
-        options.LogoutPath = "/Conta/Sair";
-        options.AccessDeniedPath = "/Conta/Login";
+        options.LoginPath = "/Login";
+        options.LogoutPath = "/Logout";
+        options.AccessDeniedPath = "/Login";
 
         // O JWT da API vive dentro do cookie, que e HttpOnly e criptografado pelo
         // Data Protection: nao fica acessivel a JavaScript, ao contrario de
@@ -60,9 +63,29 @@ var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Painel/Erro");
+    app.UseExceptionHandler("/Erro");
     app.UseHsts();
 }
+
+// Cabecalhos de defesa no navegador. O painel nao carrega nada de terceiros,
+// entao a CSP pode ser restritiva sem quebrar tela.
+app.Use(async (contexto, proximo) =>
+{
+    var cabecalhos = contexto.Response.Headers;
+    cabecalhos["X-Content-Type-Options"] = "nosniff";
+    cabecalhos["X-Frame-Options"] = "DENY";
+    cabecalhos["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    cabecalhos["Content-Security-Policy"] =
+        "default-src 'self'; " +
+        "img-src 'self' data:; " +      // QR Code chega como data URI
+        "script-src 'self' 'unsafe-inline'; " +
+        "style-src 'self' 'unsafe-inline'; " +
+        "frame-ancestors 'none'; " +
+        "base-uri 'self'; " +
+        "form-action 'self'";
+
+    await proximo();
+});
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
@@ -70,8 +93,8 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller=Painel}/{action=Index}/{id?}");
+app.MapStaticAssets();
+app.MapRazorPages()
+   .WithStaticAssets();
 
 app.Run();

@@ -1,8 +1,8 @@
 using System.Text.Json;
-using AutoMapper;
 using AutoZapSaaS.Application.Common;
 using AutoZapSaaS.Application.Common.Interfaces;
 using AutoZapSaaS.Application.DTOs;
+using AutoZapSaaS.Application.Mappings;
 using AutoZapSaaS.Application.Services.Interfaces;
 using AutoZapSaaS.Domain.Entities;
 using AutoZapSaaS.Domain.Enums;
@@ -14,20 +14,17 @@ namespace AutoZapSaaS.Application.Services.Implementations;
 public class WebhookService : IWebhookService
 {
     private readonly IApplicationDbContext _context;
-    private readonly IMapper _mapper;
     private readonly IEvolutionApiClient _evolutionClient;
     private readonly IPlanLimitService _planLimits;
     private readonly ILogger<WebhookService> _logger;
 
     public WebhookService(
         IApplicationDbContext context,
-        IMapper mapper,
         IEvolutionApiClient evolutionClient,
         IPlanLimitService planLimits,
         ILogger<WebhookService> logger)
     {
         _context = context;
-        _mapper = mapper;
         _evolutionClient = evolutionClient;
         _planLimits = planLimits;
         _logger = logger;
@@ -43,7 +40,7 @@ public class WebhookService : IWebhookService
         {
             _logger.LogInformation(
                 "Webhook Kiwify reentregue para o tenant {TenantId}; ignorado", tenantId);
-            return _mapper.Map<WebhookEventResponse>(jaProcessado);
+            return jaProcessado.ParaResposta();
         }
 
         var webhookEvent = new WebhookEvent(tenantId, WebhookPlatform.Kiwify, EventType.PaymentConfirmed, rawPayload);
@@ -73,7 +70,7 @@ public class WebhookService : IWebhookService
         _context.WebhookEvents.Add(webhookEvent);
         await _context.SaveChangesAsync(CancellationToken.None);
 
-        return _mapper.Map<WebhookEventResponse>(webhookEvent);
+        return webhookEvent.ParaResposta();
     }
 
     public async Task<WebhookEventResponse> ProcessHotmartAsync(Guid tenantId, JsonElement payload)
@@ -86,7 +83,7 @@ public class WebhookService : IWebhookService
         {
             _logger.LogInformation(
                 "Webhook Hotmart reentregue para o tenant {TenantId}; ignorado", tenantId);
-            return _mapper.Map<WebhookEventResponse>(jaProcessado);
+            return jaProcessado.ParaResposta();
         }
 
         var webhookEvent = new WebhookEvent(tenantId, WebhookPlatform.Hotmart, EventType.PaymentConfirmed, rawPayload);
@@ -117,7 +114,7 @@ public class WebhookService : IWebhookService
         _context.WebhookEvents.Add(webhookEvent);
         await _context.SaveChangesAsync(CancellationToken.None);
 
-        return _mapper.Map<WebhookEventResponse>(webhookEvent);
+        return webhookEvent.ParaResposta();
     }
 
     public async Task<WebhookEventResponse> ProcessNuvemshopAsync(Guid tenantId, JsonElement payload)
@@ -130,7 +127,7 @@ public class WebhookService : IWebhookService
         {
             _logger.LogInformation(
                 "Webhook Nuvemshop reentregue para o tenant {TenantId}; ignorado", tenantId);
-            return _mapper.Map<WebhookEventResponse>(jaProcessado);
+            return jaProcessado.ParaResposta();
         }
 
         var webhookEvent = new WebhookEvent(tenantId, WebhookPlatform.Nuvemshop, EventType.OrderCreated, rawPayload);
@@ -160,7 +157,7 @@ public class WebhookService : IWebhookService
         _context.WebhookEvents.Add(webhookEvent);
         await _context.SaveChangesAsync(CancellationToken.None);
 
-        return _mapper.Map<WebhookEventResponse>(webhookEvent);
+        return webhookEvent.ParaResposta();
     }
 
     /// <summary>
