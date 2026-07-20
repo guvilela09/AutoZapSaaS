@@ -1,0 +1,67 @@
+@model ConectarViewModel
+@{ ViewData["Title"] = "Conectar WhatsApp"; }
+
+<h1>Conectar “@Model.Instancia.Name”</h1>
+<p class="subtitulo">Leia o código abaixo com o WhatsApp que você quer conectar.</p>
+
+<div class="cartao">
+    @if (Model.QrCodeBase64 is not null)
+    {
+        <div class="area-qr">
+            <img src="data:image/png;base64,@Model.QrCodeBase64" alt="QR Code para conectar o WhatsApp" />
+            <p class="dica" style="margin-top:14px">
+                No celular: <strong>WhatsApp → Configurações → Aparelhos conectados → Conectar aparelho</strong>
+            </p>
+            <p class="dica">O código expira em cerca de 1 minuto.</p>
+            <p id="estado-conexao" class="dica"><strong>Aguardando leitura…</strong></p>
+        </div>
+    }
+
+    <div class="linha-acoes">
+        <a class="botao botao-secundario" asp-controller="Instancias" asp-action="Index">Voltar</a>
+        <a class="botao botao-secundario"
+           asp-controller="Instancias" asp-action="Conectar" asp-route-id="@Model.Instancia.Id">
+            Gerar novo código
+        </a>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Consulta o status de tempos em tempos para a tela avancar sozinha
+        // assim que o lojista escanear o codigo.
+        (function () {
+            const id = '@Model.Instancia.Id';
+            const estado = document.getElementById('estado-conexao');
+            if (!estado) return;
+
+            let tentativas = 0;
+
+            const timer = setInterval(async function () {
+                tentativas++;
+
+                try {
+                    const r = await fetch('@Url.Action("Status", "Instancias")?id=' + id);
+                    const dados = await r.json();
+                    const s = (dados.status || '').toLowerCase();
+
+                    if (s === 'open' || s === 'connected') {
+                        clearInterval(timer);
+                        estado.innerHTML = '<strong>Conectado. Redirecionando…</strong>';
+                        setTimeout(function () {
+                            window.location.href = '@Url.Action("Index", "Instancias")';
+                        }, 1200);
+                    }
+                } catch (e) {
+                    // Falha de rede pontual nao deve parar o polling.
+                }
+
+                // ~2 minutos: depois disso o QR ja expirou de qualquer forma.
+                if (tentativas > 40) {
+                    clearInterval(timer);
+                    estado.innerHTML = '<strong>O código expirou.</strong> Clique em “Gerar novo código”.';
+                }
+            }, 3000);
+        })();
+    </script>
+}

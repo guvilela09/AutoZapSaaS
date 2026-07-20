@@ -1,5 +1,4 @@
-@page
-@model AutoZapSaaS.Web.Pages.IndexModel
+@model PainelViewModel
 @{
     ViewData["Title"] = "Painel";
     var pct = Model.PercentualUsado();
@@ -9,11 +8,6 @@
 <h1>Painel</h1>
 <p class="subtitulo">Visão geral da sua automação de WhatsApp.</p>
 
-@if (!string.IsNullOrEmpty(Model.Erro))
-{
-    <div class="aviso aviso-erro">@Model.Erro</div>
-}
-
 @* Checklist de ativação: sem esses três passos o produto não envia nada. *@
 @if (!Model.TemNumeroConectado || !Model.TemIntegracao || !Model.TemTemplate)
 {
@@ -22,15 +16,15 @@
         <ul style="margin:8px 0 0; padding-left:18px">
             @if (!Model.TemNumeroConectado)
             {
-                <li><a asp-page="/Instancias">Conecte um número de WhatsApp</a></li>
+                <li><a asp-controller="Instancias" asp-action="Index">Conecte um número de WhatsApp</a></li>
             }
             @if (!Model.TemIntegracao)
             {
-                <li><a asp-page="/Webhooks">Ligue sua plataforma de vendas</a></li>
+                <li><a asp-controller="Webhooks" asp-action="Index">Ligue sua plataforma de vendas</a></li>
             }
             @if (!Model.TemTemplate)
             {
-                <li><a asp-page="/Templates">Crie uma mensagem automática</a></li>
+                <li><a asp-controller="Templates" asp-action="Index">Crie uma mensagem automática</a></li>
             }
         </ul>
     </div>
@@ -85,7 +79,7 @@
         @if (pct >= 80)
         {
             <p class="dica" style="margin-top:12px">
-                Sua cota está acabando. <a asp-page="/Planos">Ver planos</a>
+                Sua cota está acabando. <a asp-controller="Planos" asp-action="Index">Ver planos</a>
             </p>
         }
     </div>

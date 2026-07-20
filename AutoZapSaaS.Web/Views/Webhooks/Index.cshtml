@@ -1,27 +1,17 @@
-@page
-@model AutoZapSaaS.Web.Pages.WebhooksModel
+@model WebhooksViewModel
 @{ ViewData["Title"] = "Integrações"; }
 
 <h1>Integrações</h1>
 <p class="subtitulo">Ligue sua plataforma de vendas para o AutoZap disparar mensagens a cada pedido.</p>
 
-@if (!string.IsNullOrEmpty(Model.Erro))
-{
-    <div class="aviso aviso-erro">@Model.Erro</div>
-}
-@if (!string.IsNullOrEmpty(Model.Sucesso))
-{
-    <div class="aviso aviso-ok">@Model.Sucesso</div>
-}
-
 <div class="cartao">
     <h2>Nova integração</h2>
-    <form method="post" asp-page-handler="Criar">
+    <form method="post" asp-controller="Webhooks" asp-action="Criar">
         <div class="grade grade-2">
             <div class="campo">
-                <label asp-for="Plataforma">Plataforma</label>
-                <select asp-for="Plataforma">
-                    @foreach (var p in AutoZapSaaS.Web.Pages.WebhooksModel.Plataformas)
+                <label for="plataforma">Plataforma</label>
+                <select id="plataforma" name="plataforma">
+                    @foreach (var p in WebhooksViewModel.Plataformas)
                     {
                         <option value="@p.Valor">@p.Rotulo</option>
                     }
@@ -29,8 +19,8 @@
             </div>
 
             <div class="campo">
-                <label asp-for="Segredo">Segredo de assinatura</label>
-                <input asp-for="Segredo" autocomplete="off" />
+                <label for="segredo">Segredo de assinatura</label>
+                <input id="segredo" name="segredo" autocomplete="off" />
                 <p class="dica">
                     O mesmo valor configurado na plataforma. É ele que comprova
                     que o webhook veio mesmo dela.
@@ -66,19 +56,21 @@
                     </div>
 
                     <div class="linha-acoes">
-                        <form method="post" asp-page-handler="Girar" asp-route-id="@i.Id"
+                        <form method="post" asp-controller="Webhooks" asp-action="Girar"
                               onsubmit="return confirm('Gerar novo endereço? A URL atual para de funcionar até você atualizá-la na plataforma.');">
+                            <input type="hidden" name="id" value="@i.Id" />
                             <button type="submit" class="botao botao-secundario botao-pequeno">Gerar novo endereço</button>
                         </form>
-                        <form method="post" asp-page-handler="Remover" asp-route-id="@i.Id"
+                        <form method="post" asp-controller="Webhooks" asp-action="Remover"
                               onsubmit="return confirm('Remover esta integração? Os pedidos dessa plataforma deixam de gerar mensagens.');">
+                            <input type="hidden" name="id" value="@i.Id" />
                             <button type="submit" class="botao botao-perigo botao-pequeno">Remover</button>
                         </form>
                     </div>
                 </div>
 
                 <label class="dica" style="display:block; margin-bottom:4px">
-                    Cadastre esta URL em: @AutoZapSaaS.Web.Pages.WebhooksModel.OndeConfigurar(i.Platform)
+                    Cadastre esta URL em: @WebhooksViewModel.OndeConfigurar(i.Platform)
                 </label>
                 <code class="url-webhook">@i.WebhookUrl</code>
 

@@ -1,18 +1,8 @@
-@page
-@model AutoZapSaaS.Web.Pages.PlanosModel
+@model PlanosViewModel
 @{ ViewData["Title"] = "Plano"; }
 
 <h1>Plano e cobrança</h1>
 <p class="subtitulo">Escolha o plano de acordo com o volume da sua loja.</p>
-
-@if (!string.IsNullOrEmpty(Model.Erro))
-{
-    <div class="aviso aviso-erro">@Model.Erro</div>
-}
-@if (!string.IsNullOrEmpty(Model.Sucesso))
-{
-    <div class="aviso aviso-ok">@Model.Sucesso</div>
-}
 
 @if (Model.Assinatura is not null)
 {
@@ -20,8 +10,8 @@
         <div class="linha-acoes" style="justify-content:space-between">
             <div>
                 <h2 style="margin-bottom:2px">Plano atual: @Model.Assinatura.PlanoNome</h2>
-                <span class="selo @AutoZapSaaS.Web.Pages.PlanosModel.SeloDoStatus(Model.Assinatura.Status)">
-                    @AutoZapSaaS.Web.Pages.PlanosModel.TextoDoStatus(Model.Assinatura.Status)
+                <span class="selo @PlanosViewModel.SeloDoStatus(Model.Assinatura.Status)">
+                    @PlanosViewModel.TextoDoStatus(Model.Assinatura.Status)
                 </span>
 
                 @if (Model.Assinatura.PeriodoFimEm is not null)
@@ -34,7 +24,7 @@
 
             @if (!Model.Assinatura.Tier.Equals("Free", StringComparison.OrdinalIgnoreCase))
             {
-                <form method="post" asp-page-handler="Cancelar"
+                <form method="post" asp-controller="Planos" asp-action="Cancelar"
                       onsubmit="return confirm('Cancelar a assinatura? Sua conta volta para o plano Free e os limites diminuem.');">
                     <button type="submit" class="botao botao-perigo botao-pequeno">Cancelar assinatura</button>
                 </form>
@@ -58,11 +48,11 @@
     </div>
 }
 
-<form method="post" asp-page-handler="Assinar">
+<form method="post" asp-controller="Planos" asp-action="Assinar">
     <div class="cartao">
         <div class="campo" style="max-width:280px; margin-bottom:0">
-            <label asp-for="FormaPagamento">Forma de pagamento</label>
-            <select asp-for="FormaPagamento">
+            <label for="formaPagamento">Forma de pagamento</label>
+            <select id="formaPagamento" name="formaPagamento">
                 <option value="Pix">Pix</option>
                 <option value="Boleto">Boleto</option>
                 <option value="CartaoCredito">Cartão de crédito</option>

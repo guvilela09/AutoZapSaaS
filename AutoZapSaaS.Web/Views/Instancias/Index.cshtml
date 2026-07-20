@@ -1,0 +1,89 @@
+@model InstanciasViewModel
+@{ ViewData["Title"] = "WhatsApp"; }
+
+<h1>Números de WhatsApp</h1>
+<p class="subtitulo">Conecte o WhatsApp da sua loja para começar a enviar mensagens automáticas.</p>
+
+@if (Model.PrimeiroAcesso)
+{
+    <div class="aviso aviso-ok">
+        Conta criada. O primeiro passo é conectar um número de WhatsApp abaixo.
+    </div>
+}
+
+<div class="cartao">
+    <h2>Conectar um novo número</h2>
+    <form method="post" asp-controller="Instancias" asp-action="Criar">
+        <div class="campo">
+            <label for="nome">Nome para identificar</label>
+            <input id="nome" name="nome" placeholder="Ex.: Atendimento da loja" />
+            <p class="dica">Só para você organizar. O cliente não vê esse nome.</p>
+        </div>
+        <button type="submit" class="botao">Gerar QR Code</button>
+    </form>
+</div>
+
+<div class="cartao">
+    <h2>Seus números</h2>
+
+    @if (!Model.Instancias.Any())
+    {
+        <div class="vazio">
+            <p>Nenhum número conectado ainda.</p>
+        </div>
+    }
+    else
+    {
+        <div class="rolagem">
+            <table class="tabela">
+                <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Situação</th>
+                    <th>Criado em</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var i in Model.Instancias)
+                {
+                    var conectado = i.Status.Equals("Connected", StringComparison.OrdinalIgnoreCase);
+                    <tr>
+                        <td><strong>@i.Name</strong></td>
+                        <td>
+                            <span class="selo @InstanciasViewModel.SeloDeStatus(i.Status)">
+                                @InstanciasViewModel.TextoDeStatus(i.Status)
+                            </span>
+                        </td>
+                        <td>@i.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                        <td>
+                            <div class="linha-acoes">
+                                <a class="botao botao-secundario botao-pequeno"
+                                   asp-controller="Instancias" asp-action="Conectar" asp-route-id="@i.Id">
+                                    @(conectado ? "Reconectar" : "Conectar")
+                                </a>
+
+                                @if (conectado)
+                                {
+                                    <form method="post" asp-controller="Instancias" asp-action="Desconectar">
+                                        <input type="hidden" name="id" value="@i.Id" />
+                                        <button type="submit" class="botao botao-secundario botao-pequeno">
+                                            Desconectar
+                                        </button>
+                                    </form>
+                                }
+
+                                <form method="post" asp-controller="Instancias" asp-action="Remover"
+                                      onsubmit="return confirm('Remover este número? As mensagens automáticas por ele param de funcionar.');">
+                                    <input type="hidden" name="id" value="@i.Id" />
+                                    <button type="submit" class="botao botao-perigo botao-pequeno">Remover</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

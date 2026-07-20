@@ -1,0 +1,19 @@
+@*
+    Avisos de erro e sucesso vindos do TempData. Ficam num partial porque, com
+    o padrao POST-Redirect-Get, toda tela precisa dos mesmos dois blocos.
+*@
+@if (TempData["Erro"] is string erro && !string.IsNullOrWhiteSpace(erro))
+{
+    <div class="aviso aviso-erro">
+        @erro
+        @if (TempData["PlanoSugerido"] is string plano && !string.IsNullOrWhiteSpace(plano))
+        {
+            <text> <a asp-controller="Planos" asp-action="Index">Ver o plano @plano</a></text>
+        }
+    </div>
+}
+
+@if (TempData["Sucesso"] is string sucesso && !string.IsNullOrWhiteSpace(sucesso))
+{
+    <div class="aviso aviso-ok">@sucesso</div>
+}

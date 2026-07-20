@@ -1,5 +1,4 @@
-@page
-@model AutoZapSaaS.Web.Pages.CadastroModel
+@model CadastroViewModel
 @{ ViewData["Title"] = "Criar conta"; }
 
 <div class="caixa-login">
@@ -14,12 +13,14 @@
             O plano Free inclui 1 número de WhatsApp e 100 mensagens por mês. Sem cartão.
         </p>
 
-        @if (!string.IsNullOrEmpty(Model.Erro))
+        @if (!ViewData.ModelState.IsValid && ViewData.ModelState[string.Empty]?.Errors.Count > 0)
         {
-            <div class="aviso aviso-erro">@Model.Erro</div>
+            <div class="aviso aviso-erro">
+                @ViewData.ModelState[string.Empty]!.Errors.First().ErrorMessage
+            </div>
         }
 
-        <form method="post">
+        <form method="post" asp-controller="Conta" asp-action="Cadastro">
             <div class="campo">
                 <label asp-for="NomeEmpresa">Nome da loja</label>
                 <input asp-for="NomeEmpresa" autofocus />
@@ -55,6 +56,6 @@
     </div>
 
     <div class="rodape-form">
-        Já tem conta? <a asp-page="/Login">Entrar</a>
+        Já tem conta? <a asp-controller="Conta" asp-action="Login">Entrar</a>
     </div>
 </div>

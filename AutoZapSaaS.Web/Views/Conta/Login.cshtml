@@ -1,5 +1,4 @@
-@page
-@model AutoZapSaaS.Web.Pages.LoginModel
+@model LoginViewModel
 @{ ViewData["Title"] = "Entrar"; }
 
 <div class="caixa-login">
@@ -11,12 +10,14 @@
     <div class="cartao">
         <h2>Entrar na sua conta</h2>
 
-        @if (!string.IsNullOrEmpty(Model.Erro))
+        @if (!ViewData.ModelState.IsValid && ViewData.ModelState[string.Empty]?.Errors.Count > 0)
         {
-            <div class="aviso aviso-erro">@Model.Erro</div>
+            <div class="aviso aviso-erro">
+                @ViewData.ModelState[string.Empty]!.Errors.First().ErrorMessage
+            </div>
         }
 
-        <form method="post">
+        <form method="post" asp-controller="Conta" asp-action="Login">
             <div class="campo">
                 <label asp-for="Email">E-mail</label>
                 <input asp-for="Email" type="email" autocomplete="username" autofocus />
@@ -34,6 +35,7 @@
     </div>
 
     <div class="rodape-form">
-        Ainda não tem conta? <a asp-page="/Cadastro">Criar conta grátis</a>
+        Ainda não tem conta?
+        <a asp-controller="Conta" asp-action="Cadastro">Criar conta grátis</a>
     </div>
 </div>

@@ -1,5 +1,7 @@
 using AutoZapSaaS.Web.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,13 +15,15 @@ if (string.IsNullOrWhiteSpace(apiBaseUrl))
         "apontando para a AutoZap API (ex.: http://localhost:5000).");
 }
 
-builder.Services.AddRazorPages(options =>
+// Exige login em tudo por padrao. Liberar exige [AllowAnonymous] explicito,
+// entao esquecer um [Authorize] deixa de expor tela.
+var exigirLogin = new AuthorizationPolicyBuilder()
+    .RequireAuthenticatedUser()
+    .Build();
+
+builder.Services.AddControllersWithViews(options =>
 {
-    // Tudo exige login, menos o que estiver explicitamente liberado.
-    options.Conventions.AuthorizeFolder("/");
-    options.Conventions.AllowAnonymousToPage("/Login");
-    options.Conventions.AllowAnonymousToPage("/Cadastro");
-    options.Conventions.AllowAnonymousToPage("/Error");
+    options.Filters.Add(new AuthorizeFilter(exigirLogin));
 });
 
 builder.Services.AddHttpContextAccessor();
@@ -34,12 +38,13 @@ builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
-        options.LoginPath = "/Login";
-        options.LogoutPath = "/Logout";
-        options.AccessDeniedPath = "/Login";
+        options.LoginPath = "/Conta/Login";
+        options.LogoutPath = "/Conta/Sair";
+        options.AccessDeniedPath = "/Conta/Login";
 
-        // O JWT da API vive dentro do cookie, que e HttpOnly: nao fica acessivel
-        // a JavaScript, ao contrario de guardar em localStorage.
+        // O JWT da API vive dentro do cookie, que e HttpOnly e criptografado pelo
+        // Data Protection: nao fica acessivel a JavaScript, ao contrario de
+        // guardar o token em localStorage.
         options.Cookie.HttpOnly = true;
         options.Cookie.SameSite = SameSiteMode.Lax;
         options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
@@ -55,17 +60,18 @@ var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Error");
+    app.UseExceptionHandler("/Painel/Erro");
     app.UseHsts();
 }
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapStaticAssets();
-app.MapRazorPages()
-   .WithStaticAssets();
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Painel}/{action=Index}/{id?}");
 
 app.Run();

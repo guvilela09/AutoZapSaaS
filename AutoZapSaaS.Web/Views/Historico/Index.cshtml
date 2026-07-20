@@ -1,14 +1,8 @@
-@page
-@model AutoZapSaaS.Web.Pages.HistoricoModel
+@model HistoricoViewModel
 @{ ViewData["Title"] = "Histórico"; }
 
 <h1>Histórico de mensagens</h1>
 <p class="subtitulo">Últimas 200 mensagens disparadas pela sua conta.</p>
-
-@if (!string.IsNullOrEmpty(Model.Erro))
-{
-    <div class="aviso aviso-erro">@Model.Erro</div>
-}
 
 <div class="grade grade-2" style="margin-bottom:20px">
     <div class="cartao">
@@ -26,11 +20,11 @@
 <div class="cartao">
     <div class="linha-acoes" style="margin-bottom:16px">
         <a class="botao @(string.IsNullOrEmpty(Model.Filtro) ? "" : "botao-secundario")"
-           asp-page="/Historico">Todas</a>
+           asp-controller="Historico" asp-action="Index">Todas</a>
         <a class="botao @(Model.Filtro == "enviadas" ? "" : "botao-secundario")"
-           asp-page="/Historico" asp-route-filtro="enviadas">Entregues</a>
+           asp-controller="Historico" asp-action="Index" asp-route-filtro="enviadas">Entregues</a>
         <a class="botao @(Model.Filtro == "falhas" ? "" : "botao-secundario")"
-           asp-page="/Historico" asp-route-filtro="falhas">Com falha</a>
+           asp-controller="Historico" asp-action="Index" asp-route-filtro="falhas">Com falha</a>
     </div>
 
     @if (!Model.Mensagens.Any())
@@ -58,11 +52,11 @@
                     <tr>
                         <td>@m.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm")</td>
                         <td>@(string.IsNullOrWhiteSpace(m.CustomerName) ? "—" : m.CustomerName)</td>
-                        <td>@AutoZapSaaS.Web.Pages.ClientesModel.FormatarTelefone(m.PhoneNumber)</td>
+                        <td>@ClientesViewModel.FormatarTelefone(m.PhoneNumber)</td>
                         <td style="max-width:330px; color:var(--suave)">@m.Body</td>
                         <td>
-                            <span class="selo @AutoZapSaaS.Web.Pages.HistoricoModel.SeloDoStatus(m.Status)">
-                                @AutoZapSaaS.Web.Pages.HistoricoModel.TextoDoStatus(m.Status)
+                            <span class="selo @HistoricoViewModel.SeloDoStatus(m.Status)">
+                                @HistoricoViewModel.TextoDoStatus(m.Status)
                             </span>
                         </td>
                     </tr>
