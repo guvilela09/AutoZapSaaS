@@ -1,6 +1,6 @@
-using AutoMapper;
 using AutoZapSaaS.Application.Common.Interfaces;
 using AutoZapSaaS.Application.DTOs;
+using AutoZapSaaS.Application.Mappings;
 using AutoZapSaaS.Application.Services.Interfaces;
 using AutoZapSaaS.Domain.Entities;
 using AutoZapSaaS.Domain.Enums;
@@ -13,18 +13,18 @@ public class WhatsAppService : IWhatsAppService
 {
     private readonly IApplicationDbContext _context;
     private readonly IEvolutionApiClient _evolutionClient;
-    private readonly IMapper _mapper;
+    private readonly IPlanLimitService _planLimits;
     private readonly ILogger<WhatsAppService> _logger;
 
     public WhatsAppService(
         IApplicationDbContext context,
         IEvolutionApiClient evolutionClient,
-        IMapper mapper,
+        IPlanLimitService planLimits,
         ILogger<WhatsAppService> logger)
     {
         _context = context;
         _evolutionClient = evolutionClient;
-        _mapper = mapper;
+        _planLimits = planLimits;
         _logger = logger;
     }
 
@@ -40,6 +40,8 @@ public class WhatsAppService : IWhatsAppService
         // Envio avulso: o telefone pode não corresponder a nenhum cliente cadastrado.
         var customerId = (await _context.Customers
             .FirstOrDefaultAsync(c => c.PhoneNumber == request.PhoneNumber))?.Id;
+
+        await _planLimits.ConsumirMensagemAsync(tenantId);
 
         var message = new WhatsAppMessage(tenantId, instance.Id, customerId, request.PhoneNumber, request.Message);
 
@@ -62,7 +64,7 @@ public class WhatsAppService : IWhatsAppService
         _context.WhatsAppMessages.Add(message);
         await _context.SaveChangesAsync(CancellationToken.None);
 
-        return _mapper.Map<WhatsAppMessageResponse>(message);
+        return message.ParaResposta();
     }
 
     public async Task<WhatsAppMessageResponse> SendTemplateAsync(Guid tenantId, SendTemplateMessageRequest request)
@@ -83,6 +85,8 @@ public class WhatsAppService : IWhatsAppService
             ?? throw new InvalidOperationException("Template não encontrado.");
 
         var body = template.Render(customer.Name, $"Mensagem automática");
+        await _planLimits.ConsumirMensagemAsync(tenantId);
+
         var message = new WhatsAppMessage(tenantId, instance.Id, customer.Id, customer.PhoneNumber, body);
 
         try
@@ -104,7 +108,7 @@ public class WhatsAppService : IWhatsAppService
         _context.WhatsAppMessages.Add(message);
         await _context.SaveChangesAsync(CancellationToken.None);
 
-        return _mapper.Map<WhatsAppMessageResponse>(message);
+        return message.ParaResposta();
     }
 
     public async Task<List<WhatsAppMessageResponse>> GetMessagesAsync(Guid tenantId)
@@ -116,7 +120,7 @@ public class WhatsAppService : IWhatsAppService
             .Take(200)
             .ToListAsync();
 
-        return _mapper.Map<List<WhatsAppMessageResponse>>(messages);
+        return messages.ParaRespostas(e => e.ParaResposta());
     }
 
     public async Task ProcessPendingMessagesAsync()
@@ -128,6 +132,15 @@ public class WhatsAppService : IWhatsAppService
 
         foreach (var msg in pending)
         {
+            // O numero que originou a mensagem pode ter sido removido enquanto ela
+            // esperava na fila. Sem instancia nao ha por onde enviar.
+            if (msg.Instance is null)
+            {
+                msg.MarkFailed("O número de WhatsApp usado por esta mensagem foi removido.");
+                _context.WhatsAppMessages.Update(msg);
+                continue;
+            }
+
             try
             {
                 var success = await _evolutionClient.SendMessageAsync(

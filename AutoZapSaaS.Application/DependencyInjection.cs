@@ -13,7 +13,6 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddAutoMapper(Assembly.GetExecutingAssembly());
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
 
         services.Configure<JwtSettings>(configuration.GetSection("Jwt"));
@@ -21,9 +20,10 @@ public static class DependencyInjection
 
         services.AddSingleton<IWebhookSignatureValidator, WebhookSignatureValidator>();
         services.AddScoped<IWebhookIntegrationService, WebhookIntegrationService>();
+        services.AddScoped<IPlanLimitService, PlanLimitService>();
+        services.AddScoped<ISubscriptionService, SubscriptionService>();
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<IAuthService, AuthService>();
-        services.AddScoped<ITenantService, TenantService>();
         services.AddScoped<IInstanceService, InstanceService>();
         services.AddScoped<ICustomerService, CustomerService>();
         services.AddScoped<IWebhookService, WebhookService>();

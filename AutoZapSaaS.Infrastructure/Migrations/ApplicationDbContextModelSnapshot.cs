@@ -136,6 +136,54 @@ namespace AutoZapSaaS.Infrastructure.Migrations
                     b.ToTable("MessageTemplates");
                 });
 
+            modelBuilder.Entity("AutoZapSaaS.Domain.Entities.Subscription", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AsaasCustomerId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("AsaasSubscriptionId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("CicloIniciadoEm")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("MensagensNoCiclo")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("PeriodoFimEm")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Tier")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AsaasSubscriptionId");
+
+                    b.HasIndex("TenantId")
+                        .IsUnique();
+
+                    b.ToTable("Subscriptions");
+                });
+
             modelBuilder.Entity("AutoZapSaaS.Domain.Entities.SystemUser", b =>
                 {
                     b.Property<Guid>("Id")
@@ -228,6 +276,11 @@ namespace AutoZapSaaS.Infrastructure.Migrations
                     b.Property<int>("EventType")
                         .HasColumnType("int");
 
+                    b.Property<string>("PayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
                     b.Property<int>("Platform")
                         .HasColumnType("int");
 
@@ -245,6 +298,8 @@ namespace AutoZapSaaS.Infrastructure.Migrations
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "PayloadHash");
 
                     b.ToTable("WebhookEvents");
                 });
@@ -320,7 +375,7 @@ namespace AutoZapSaaS.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<Guid>("InstanceId")
+                    b.Property<Guid?>("InstanceId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("PhoneNumber")
@@ -381,6 +436,17 @@ namespace AutoZapSaaS.Infrastructure.Migrations
                     b.Navigation("Tenant");
                 });
 
+            modelBuilder.Entity("AutoZapSaaS.Domain.Entities.Subscription", b =>
+                {
+                    b.HasOne("AutoZapSaaS.Domain.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
+                });
+
             modelBuilder.Entity("AutoZapSaaS.Domain.Entities.SystemUser", b =>
                 {
                     b.HasOne("AutoZapSaaS.Domain.Entities.Tenant", "Tenant")
@@ -413,8 +479,7 @@ namespace AutoZapSaaS.Infrastructure.Migrations
                     b.HasOne("AutoZapSaaS.Domain.Entities.Instance", "Instance")
                         .WithMany()
                         .HasForeignKey("InstanceId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("AutoZapSaaS.Domain.Entities.Tenant", "Tenant")
                         .WithMany()

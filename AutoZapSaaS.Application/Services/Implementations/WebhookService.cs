@@ -1,7 +1,8 @@
 using System.Text.Json;
-using AutoMapper;
+using AutoZapSaaS.Application.Common;
 using AutoZapSaaS.Application.Common.Interfaces;
 using AutoZapSaaS.Application.DTOs;
+using AutoZapSaaS.Application.Mappings;
 using AutoZapSaaS.Application.Services.Interfaces;
 using AutoZapSaaS.Domain.Entities;
 using AutoZapSaaS.Domain.Enums;
@@ -13,25 +14,35 @@ namespace AutoZapSaaS.Application.Services.Implementations;
 public class WebhookService : IWebhookService
 {
     private readonly IApplicationDbContext _context;
-    private readonly IMapper _mapper;
     private readonly IEvolutionApiClient _evolutionClient;
+    private readonly IPlanLimitService _planLimits;
     private readonly ILogger<WebhookService> _logger;
 
     public WebhookService(
         IApplicationDbContext context,
-        IMapper mapper,
         IEvolutionApiClient evolutionClient,
+        IPlanLimitService planLimits,
         ILogger<WebhookService> logger)
     {
         _context = context;
-        _mapper = mapper;
         _evolutionClient = evolutionClient;
+        _planLimits = planLimits;
         _logger = logger;
     }
 
     public async Task<WebhookEventResponse> ProcessKiwifyAsync(Guid tenantId, JsonElement payload)
     {
         var rawPayload = payload.GetRawText();
+
+        // Reentrega da plataforma: devolve o resultado anterior sem reenviar nada.
+        var jaProcessado = await BuscarEntregaAnteriorAsync(tenantId, rawPayload);
+        if (jaProcessado is not null)
+        {
+            _logger.LogInformation(
+                "Webhook Kiwify reentregue para o tenant {TenantId}; ignorado", tenantId);
+            return jaProcessado.ParaResposta();
+        }
+
         var webhookEvent = new WebhookEvent(tenantId, WebhookPlatform.Kiwify, EventType.PaymentConfirmed, rawPayload);
 
         try
@@ -59,12 +70,22 @@ public class WebhookService : IWebhookService
         _context.WebhookEvents.Add(webhookEvent);
         await _context.SaveChangesAsync(CancellationToken.None);
 
-        return _mapper.Map<WebhookEventResponse>(webhookEvent);
+        return webhookEvent.ParaResposta();
     }
 
     public async Task<WebhookEventResponse> ProcessHotmartAsync(Guid tenantId, JsonElement payload)
     {
         var rawPayload = payload.GetRawText();
+
+        // Reentrega da plataforma: devolve o resultado anterior sem reenviar nada.
+        var jaProcessado = await BuscarEntregaAnteriorAsync(tenantId, rawPayload);
+        if (jaProcessado is not null)
+        {
+            _logger.LogInformation(
+                "Webhook Hotmart reentregue para o tenant {TenantId}; ignorado", tenantId);
+            return jaProcessado.ParaResposta();
+        }
+
         var webhookEvent = new WebhookEvent(tenantId, WebhookPlatform.Hotmart, EventType.PaymentConfirmed, rawPayload);
 
         try
@@ -93,12 +114,22 @@ public class WebhookService : IWebhookService
         _context.WebhookEvents.Add(webhookEvent);
         await _context.SaveChangesAsync(CancellationToken.None);
 
-        return _mapper.Map<WebhookEventResponse>(webhookEvent);
+        return webhookEvent.ParaResposta();
     }
 
     public async Task<WebhookEventResponse> ProcessNuvemshopAsync(Guid tenantId, JsonElement payload)
     {
         var rawPayload = payload.GetRawText();
+
+        // Reentrega da plataforma: devolve o resultado anterior sem reenviar nada.
+        var jaProcessado = await BuscarEntregaAnteriorAsync(tenantId, rawPayload);
+        if (jaProcessado is not null)
+        {
+            _logger.LogInformation(
+                "Webhook Nuvemshop reentregue para o tenant {TenantId}; ignorado", tenantId);
+            return jaProcessado.ParaResposta();
+        }
+
         var webhookEvent = new WebhookEvent(tenantId, WebhookPlatform.Nuvemshop, EventType.OrderCreated, rawPayload);
 
         try
@@ -126,7 +157,26 @@ public class WebhookService : IWebhookService
         _context.WebhookEvents.Add(webhookEvent);
         await _context.SaveChangesAsync(CancellationToken.None);
 
-        return _mapper.Map<WebhookEventResponse>(webhookEvent);
+        return webhookEvent.ParaResposta();
+    }
+
+    /// <summary>
+    /// Reconhece reentrega do mesmo webhook. As plataformas reenviam em timeout ou
+    /// erro, e reprocessar dispararia a mesma mensagem de novo para o consumidor
+    /// final — alem de consumir a cota duas vezes.
+    /// A janela de 24h evita bloquear um pedido legitimamente identico dias depois.
+    /// </summary>
+    private async Task<WebhookEvent?> BuscarEntregaAnteriorAsync(Guid tenantId, string rawPayload)
+    {
+        var hash = WebhookEvent.CalcularHash(rawPayload);
+        var limite = DateTime.UtcNow.AddHours(-24);
+
+        return await _context.WebhookEvents
+            .Where(w => w.TenantId == tenantId
+                        && w.PayloadHash == hash
+                        && w.Processed
+                        && w.CreatedAt >= limite)
+            .FirstOrDefaultAsync();
     }
 
     private async Task UpsertCustomerAndNotifyAsync(
@@ -166,6 +216,24 @@ public class WebhookService : IWebhookService
                 : $"Olá {name}! Seu pedido na {origin} foi confirmado com sucesso. Qualquer dúvida, é só responder por aqui!";
 
             var message = new WhatsAppMessage(tenantId, instance.Id, customer.Id, phone, body);
+
+            try
+            {
+                // Cota estourada não pode virar erro HTTP: a plataforma de vendas
+                // reenviaria o webhook indefinidamente. Registra como falha e sai.
+                await _planLimits.ConsumirMensagemAsync(tenantId);
+            }
+            catch (PlanLimitException ex)
+            {
+                message.MarkFailed(ex.Message);
+                _context.WhatsAppMessages.Add(message);
+                await _context.SaveChangesAsync(CancellationToken.None);
+
+                _logger.LogWarning(
+                    "Mensagem não enviada para {Phone}: cota do plano do tenant {TenantId} esgotada",
+                    phone, tenantId);
+                return;
+            }
 
             try
             {

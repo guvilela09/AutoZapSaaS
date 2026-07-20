@@ -29,6 +29,10 @@ public class InstancesController : ControllerBase
             var result = await _instanceService.CreateAsync(_tenantContext.TenantId, request);
             return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
         }
+        catch (PlanLimitException ex)
+        {
+            return LimiteDoPlano(ex);
+        }
         catch (EvolutionApiException ex)
         {
             return EvolutionIndisponivel(ex);
@@ -140,6 +144,18 @@ public class InstancesController : ControllerBase
     /// culparia o cliente por uma indisponibilidade nossa. O corpo cru da resposta
     /// fica so no log, para nao vazar detalhe interno.
     /// </summary>
+    /// <summary>
+    /// 402: o pedido esta correto e nossa infra esta de pe — o que falta e plano.
+    /// Devolve o plano sugerido para o painel oferecer o upgrade na hora.
+    /// </summary>
+    private IActionResult LimiteDoPlano(PlanLimitException ex) =>
+        StatusCode(StatusCodes.Status402PaymentRequired, new
+        {
+            error = ex.Message,
+            planoAtual = ex.PlanoAtual,
+            planoSugerido = ex.PlanoSugerido
+        });
+
     private IActionResult EvolutionIndisponivel(EvolutionApiException ex) =>
         StatusCode(StatusCodes.Status502BadGateway, new
         {

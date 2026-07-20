@@ -1,6 +1,6 @@
-using AutoMapper;
 using AutoZapSaaS.Application.Common.Interfaces;
 using AutoZapSaaS.Application.DTOs;
+using AutoZapSaaS.Application.Mappings;
 using AutoZapSaaS.Application.Services.Interfaces;
 using AutoZapSaaS.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -11,13 +11,11 @@ namespace AutoZapSaaS.Application.Services.Implementations;
 public class CustomerService : ICustomerService
 {
     private readonly IApplicationDbContext _context;
-    private readonly IMapper _mapper;
     private readonly ILogger<CustomerService> _logger;
 
-    public CustomerService(IApplicationDbContext context, IMapper mapper, ILogger<CustomerService> logger)
+    public CustomerService(IApplicationDbContext context, ILogger<CustomerService> logger)
     {
         _context = context;
-        _mapper = mapper;
         _logger = logger;
     }
 
@@ -28,13 +26,13 @@ public class CustomerService : ICustomerService
         await _context.SaveChangesAsync(CancellationToken.None);
 
         _logger.LogInformation("Cliente criado: {CustomerId} - {Name}", customer.Id, customer.Name);
-        return _mapper.Map<CustomerResponse>(customer);
+        return customer.ParaResposta();
     }
 
     public async Task<CustomerResponse?> GetByIdAsync(Guid id)
     {
         var customer = await _context.Customers.FirstOrDefaultAsync(c => c.Id == id);
-        return customer is null ? null : _mapper.Map<CustomerResponse>(customer);
+        return customer is null ? null : customer.ParaResposta();
     }
 
     public async Task<List<CustomerResponse>> GetByTenantAsync(Guid tenantId)
@@ -44,7 +42,7 @@ public class CustomerService : ICustomerService
             .OrderByDescending(c => c.CreatedAt)
             .ToListAsync();
 
-        return _mapper.Map<List<CustomerResponse>>(customers);
+        return customers.ParaRespostas(e => e.ParaResposta());
     }
 
     public async Task<CustomerResponse?> GetByPhoneAsync(Guid tenantId, string phoneNumber)
@@ -52,7 +50,7 @@ public class CustomerService : ICustomerService
         var customer = await _context.Customers
             .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.PhoneNumber == phoneNumber);
 
-        return customer is null ? null : _mapper.Map<CustomerResponse>(customer);
+        return customer is null ? null : customer.ParaResposta();
     }
 
     public async Task<CustomerResponse?> UpdateAsync(Guid id, UpdateCustomerRequest request)
@@ -66,7 +64,7 @@ public class CustomerService : ICustomerService
         customer.SetUpdatedAt();
 
         await _context.SaveChangesAsync(CancellationToken.None);
-        return _mapper.Map<CustomerResponse>(customer);
+        return customer.ParaResposta();
     }
 
     public async Task<bool> DeleteAsync(Guid id)

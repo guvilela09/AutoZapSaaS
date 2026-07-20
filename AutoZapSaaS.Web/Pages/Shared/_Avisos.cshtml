@@ -1,0 +1,20 @@
+@*
+    Avisos vindos do TempData. Ficam num partial porque, com POST-Redirect-Get,
+    toda tela precisa dos mesmos dois blocos — e o PRG e o que impede o F5 de
+    reenviar o formulario e duplicar cadastro.
+*@
+@if (TempData["Erro"] is string erro && !string.IsNullOrWhiteSpace(erro))
+{
+    <div class="aviso aviso-erro">
+        @erro
+        @if (TempData["PlanoSugerido"] is string plano && !string.IsNullOrWhiteSpace(plano))
+        {
+            <text> <a asp-page="/Planos">Ver o plano @plano</a></text>
+        }
+    </div>
+}
+
+@if (TempData["Sucesso"] is string sucesso && !string.IsNullOrWhiteSpace(sucesso))
+{
+    <div class="aviso aviso-ok">@sucesso</div>
+}

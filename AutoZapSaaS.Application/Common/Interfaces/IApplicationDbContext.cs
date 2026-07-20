@@ -13,6 +13,7 @@ public interface IApplicationDbContext
     DbSet<MessageTemplate> MessageTemplates { get; }
     DbSet<WhatsAppMessage> WhatsAppMessages { get; }
     DbSet<WebhookIntegration> WebhookIntegrations { get; }
+    DbSet<Subscription> Subscriptions { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

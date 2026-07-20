@@ -1,4 +1,5 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using AutoZapSaaS.API.Common;
 using AutoZapSaaS.Application;
 using AutoZapSaaS.Application.Common.Interfaces;
@@ -80,18 +81,66 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         ValidIssuer = jwtSettings["Issuer"] ?? "AutoZapSaaS",
         ValidAudience = jwtSettings["Audience"] ?? "AutoZapSaaS",
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret))
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret)),
+
+        // O padrao do .NET aceita 5 minutos de folga apos o vencimento. Num SaaS
+        // onde suspender conta e como se corta acesso, esse atraso importa.
+        ClockSkew = TimeSpan.FromSeconds(30),
+
+        // Impede que um token assinado com outro algoritmo seja aceito.
+        ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha256 }
     };
 });
+
+// Origens liberadas vem da configuracao. AllowAnyOrigin deixava qualquer site
+// chamar a API; com credencial em header isso nao e CSRF, mas amplia a superficie
+// a toa e reprova em qualquer auditoria.
+var origensPermitidas = builder.Configuration
+    .GetSection("Cors:Origens").Get<string[]>() ?? Array.Empty<string>();
 
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
+        if (origensPermitidas.Length > 0)
+        {
+            policy.WithOrigins(origensPermitidas)
+                  .AllowAnyMethod()
+                  .AllowAnyHeader();
+        }
+        else
+        {
+            // Sem origens configuradas, nenhum navegador de terceiro passa.
+            // O painel server-side nao depende de CORS para funcionar.
+            policy.WithOrigins(Array.Empty<string>());
+        }
     });
+});
+
+// Freio de forca bruta no login. Sem isso, tentar milhares de senhas por minuto
+// contra /api/auth/login nao encontra resistencia nenhuma.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.AddPolicy("autenticacao", contexto =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: contexto.Connection.RemoteIpAddress?.ToString() ?? "desconhecido",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+
+    // Teto geral por IP, para nao virar canal de abuso do restante da API.
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(contexto =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: contexto.Connection.RemoteIpAddress?.ToString() ?? "desconhecido",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 300,
+                Window = TimeSpan.FromMinutes(1)
+            }));
 });
 
 builder.Services.AddApplication(builder.Configuration);
@@ -110,6 +159,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

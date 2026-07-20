@@ -5,7 +5,11 @@ namespace AutoZapSaaS.Domain.Entities;
 public class WhatsAppMessage : Entity, ITenantEntity
 {
     public Guid TenantId { get; private set; }
-    public Guid InstanceId { get; private set; }
+    /// <summary>
+    /// Nulo quando o numero que enviou foi removido depois. O historico sobrevive:
+    /// com FK Restrict, remover um numero que ja enviou algo era impossivel.
+    /// </summary>
+    public Guid? InstanceId { get; private set; }
 
     /// <summary>
     /// Nulo em envio avulso para um telefone que ainda não é cliente cadastrado.
@@ -23,7 +27,7 @@ public class WhatsAppMessage : Entity, ITenantEntity
 
     public WhatsAppMessage() { }
 
-    public WhatsAppMessage(Guid tenantId, Guid instanceId, Guid? customerId, string phoneNumber, string body)
+    public WhatsAppMessage(Guid tenantId, Guid? instanceId, Guid? customerId, string phoneNumber, string body)
     {
         TenantId = tenantId;
         InstanceId = instanceId;

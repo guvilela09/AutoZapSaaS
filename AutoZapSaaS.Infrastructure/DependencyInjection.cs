@@ -20,6 +20,19 @@ public static class DependencyInjection
             provider.GetRequiredService<ApplicationDbContext>());
 
         services.Configure<EvolutionApiSettings>(configuration.GetSection("EvolutionApi"));
+        services.Configure<AsaasSettings>(configuration.GetSection("Asaas"));
+
+        services.AddHttpClient<IAsaasClient, AsaasClient>(client =>
+        {
+            var settings = configuration.GetSection("Asaas").Get<AsaasSettings>() ?? new AsaasSettings();
+
+            client.Timeout = TimeSpan.FromSeconds(30);
+            client.DefaultRequestHeaders.Accept.Add(
+                new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+
+            if (!string.IsNullOrWhiteSpace(settings.ApiKey))
+                client.DefaultRequestHeaders.Add("access_token", settings.ApiKey);
+        });
 
         services.AddHttpClient<IEvolutionApiClient, EvolutionApiClient>(client =>
         {

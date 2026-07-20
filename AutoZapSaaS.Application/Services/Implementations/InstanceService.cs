@@ -1,6 +1,6 @@
-using AutoMapper;
 using AutoZapSaaS.Application.Common.Interfaces;
 using AutoZapSaaS.Application.DTOs;
+using AutoZapSaaS.Application.Mappings;
 using AutoZapSaaS.Application.Services.Interfaces;
 using AutoZapSaaS.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -12,23 +12,25 @@ public class InstanceService : IInstanceService
 {
     private readonly IApplicationDbContext _context;
     private readonly IEvolutionApiClient _evolutionClient;
-    private readonly IMapper _mapper;
+    private readonly IPlanLimitService _planLimits;
     private readonly ILogger<InstanceService> _logger;
 
     public InstanceService(
         IApplicationDbContext context,
         IEvolutionApiClient evolutionClient,
-        IMapper mapper,
+        IPlanLimitService planLimits,
         ILogger<InstanceService> logger)
     {
         _context = context;
         _evolutionClient = evolutionClient;
-        _mapper = mapper;
+        _planLimits = planLimits;
         _logger = logger;
     }
 
     public async Task<InstanceResponse> CreateAsync(Guid tenantId, CreateInstanceRequest request)
     {
+        await _planLimits.GarantirPodeCriarInstanciaAsync(tenantId);
+
         var instance = new Instance(tenantId, request.Name, request.SessionName, request.Token);
         _context.Instances.Add(instance);
         await _context.SaveChangesAsync(CancellationToken.None);
@@ -48,13 +50,13 @@ public class InstanceService : IInstanceService
             throw;
         }
 
-        return _mapper.Map<InstanceResponse>(instance);
+        return instance.ParaResposta();
     }
 
     public async Task<InstanceResponse?> GetByIdAsync(Guid id)
     {
         var instance = await _context.Instances.FirstOrDefaultAsync(i => i.Id == id);
-        return instance is null ? null : _mapper.Map<InstanceResponse>(instance);
+        return instance is null ? null : instance.ParaResposta();
     }
 
     public async Task<List<InstanceResponse>> GetByTenantAsync(Guid tenantId)
@@ -63,7 +65,7 @@ public class InstanceService : IInstanceService
             .Where(i => i.TenantId == tenantId)
             .ToListAsync();
 
-        return _mapper.Map<List<InstanceResponse>>(instances);
+        return instances.ParaRespostas(e => e.ParaResposta());
     }
 
     public async Task<InstanceResponse?> UpdateAsync(Guid id, UpdateInstanceRequest request)
@@ -76,7 +78,7 @@ public class InstanceService : IInstanceService
         instance.SetUpdatedAt();
 
         await _context.SaveChangesAsync(CancellationToken.None);
-        return _mapper.Map<InstanceResponse>(instance);
+        return instance.ParaResposta();
     }
 
     public async Task<bool> DeleteAsync(Guid id)

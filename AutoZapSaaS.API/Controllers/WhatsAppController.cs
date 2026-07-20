@@ -1,3 +1,4 @@
+using AutoZapSaaS.Application.Common;
 using AutoZapSaaS.Application.Common.Interfaces;
 using AutoZapSaaS.Application.DTOs;
 using AutoZapSaaS.Application.Services.Interfaces;
@@ -28,6 +29,17 @@ public class WhatsAppController : ControllerBase
             var result = await _whatsAppService.SendMessageAsync(_tenantContext.TenantId, request);
             return Ok(result);
         }
+        catch (PlanLimitException ex)
+        {
+            return LimiteDoPlano(ex);
+        }
+        catch (EvolutionApiException)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, new
+            {
+                error = "Nao foi possivel falar com o servico de WhatsApp. Tente novamente."
+            });
+        }
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { error = ex.Message });
@@ -41,6 +53,17 @@ public class WhatsAppController : ControllerBase
         {
             var result = await _whatsAppService.SendTemplateAsync(_tenantContext.TenantId, request);
             return Ok(result);
+        }
+        catch (PlanLimitException ex)
+        {
+            return LimiteDoPlano(ex);
+        }
+        catch (EvolutionApiException)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, new
+            {
+                error = "Nao foi possivel falar com o servico de WhatsApp. Tente novamente."
+            });
         }
         catch (InvalidOperationException ex)
         {
@@ -61,4 +84,13 @@ public class WhatsAppController : ControllerBase
         await _whatsAppService.ProcessPendingMessagesAsync();
         return Ok(new { message = "Mensagens pendentes processadas." });
     }
+
+    /// <summary>402: nao e erro do pedido nem falha nossa — e limite comercial.</summary>
+    private IActionResult LimiteDoPlano(PlanLimitException ex) =>
+        StatusCode(StatusCodes.Status402PaymentRequired, new
+        {
+            error = ex.Message,
+            planoAtual = ex.PlanoAtual,
+            planoSugerido = ex.PlanoSugerido
+        });
 }

@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using AutoZapSaaS.Domain.Enums;
 
 namespace AutoZapSaaS.Domain.Entities;
@@ -11,6 +13,13 @@ public class WebhookEvent : Entity
     public bool Processed { get; private set; }
     public string Error { get; private set; }
 
+    /// <summary>
+    /// Hash do corpo cru, usado para reconhecer reentrega. Kiwify, Hotmart e
+    /// Nuvemshop reenviam o mesmo webhook em timeout ou falha, e sem isso o
+    /// cliente final recebe a mesma mensagem varias vezes.
+    /// </summary>
+    public string PayloadHash { get; private set; } = string.Empty;
+
     public WebhookEvent() { }
 
     public WebhookEvent(Guid? tenantId, WebhookPlatform platform, EventType eventType, string rawPayload)
@@ -19,9 +28,13 @@ public class WebhookEvent : Entity
         Platform = platform;
         EventType = eventType;
         RawPayload = rawPayload;
+        PayloadHash = CalcularHash(rawPayload);
         Processed = false;
         Error = string.Empty;
     }
+
+    public static string CalcularHash(string rawPayload) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(rawPayload ?? string.Empty)));
 
     public void MarkProcessed()
     {

@@ -1,0 +1,84 @@
+@page
+@model ClientesModel
+@{ ViewData["Title"] = "Clientes"; }
+
+<h1>Clientes</h1>
+<p class="subtitulo">Cadastrados manualmente ou criados automaticamente pelos webhooks da sua loja.</p>
+
+<div class="cartao">
+    <h2>Cadastrar cliente</h2>
+    <form method="post" asp-page-handler="Criar">
+        <div class="grade grade-3">
+            <div class="campo">
+                <label asp-for="Nome">Nome</label>
+                <input asp-for="Nome" />
+            </div>
+            <div class="campo">
+                <label asp-for="Telefone">WhatsApp</label>
+                <input asp-for="Telefone" placeholder="5511999999999" />
+                <p class="dica">Com código do país e DDD.</p>
+            </div>
+            <div class="campo">
+                <label asp-for="Email">E-mail (opcional)</label>
+                <input asp-for="Email" type="email" />
+            </div>
+        </div>
+        <button type="submit" class="botao">Cadastrar</button>
+    </form>
+</div>
+
+<div class="cartao">
+    <h2>Sua base (@Model.Clientes.Count)</h2>
+
+    <form method="get" style="margin-bottom:16px">
+        <div class="linha-acoes">
+            <input asp-for="Busca" placeholder="Buscar por nome ou telefone"
+                   style="flex:1; min-width:220px; padding:9px 11px; border:1px solid var(--borda); border-radius:8px; font-family:inherit; font-size:14.5px" />
+            <button type="submit" class="botao botao-secundario">Buscar</button>
+            @if (!string.IsNullOrWhiteSpace(Model.Busca))
+            {
+                <a class="botao botao-secundario" asp-page="/Clientes">Limpar</a>
+            }
+        </div>
+    </form>
+
+    @if (!Model.Clientes.Any())
+    {
+        <div class="vazio">
+            <p>@(string.IsNullOrWhiteSpace(Model.Busca) ? "Nenhum cliente ainda." : "Nenhum cliente encontrado.")</p>
+        </div>
+    }
+    else
+    {
+        <div class="rolagem">
+            <table class="tabela">
+                <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>WhatsApp</th>
+                    <th>Origem</th>
+                    <th>Cadastro</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var c in Model.Clientes)
+                {
+                    <tr>
+                        <td><strong>@c.Name</strong></td>
+                        <td>@ClientesModel.FormatarTelefone(c.PhoneNumber)</td>
+                        <td><span class="selo selo-neutro">@c.Origin</span></td>
+                        <td>@c.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                        <td>
+                            <form method="post" asp-page-handler="Remover" asp-route-id="@c.Id"
+                                  onsubmit="return confirm('Remover este cliente? O histórico de mensagens é mantido.');">
+                                <button type="submit" class="botao botao-perigo botao-pequeno">Remover</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

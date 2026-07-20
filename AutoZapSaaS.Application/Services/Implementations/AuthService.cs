@@ -1,4 +1,3 @@
-using AutoMapper;
 using AutoZapSaaS.Application.Common.Interfaces;
 using AutoZapSaaS.Application.DTOs;
 using AutoZapSaaS.Application.Services.Interfaces;
@@ -11,13 +10,11 @@ public class AuthService : IAuthService
 {
     private readonly IApplicationDbContext _context;
     private readonly IJwtService _jwtService;
-    private readonly IMapper _mapper;
 
-    public AuthService(IApplicationDbContext context, IJwtService jwtService, IMapper mapper)
+    public AuthService(IApplicationDbContext context, IJwtService jwtService)
     {
         _context = context;
         _jwtService = jwtService;
-        _mapper = mapper;
     }
 
     public async Task<LoginResponse> LoginAsync(LoginRequest request)
@@ -64,6 +61,9 @@ public class AuthService : IAuthService
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.AdminPassword);
         var user = new SystemUser(tenant.Id, request.AdminEmail, passwordHash, "Admin");
         _context.SystemUsers.Add(user);
+
+        // Todo tenant nasce no Free: sem assinatura, os limites ficariam indefinidos.
+        _context.Subscriptions.Add(Subscription.Gratuita(tenant.Id));
 
         await _context.SaveChangesAsync(CancellationToken.None);
 
