@@ -75,6 +75,10 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
             e.HasKey(w => w.Id);
             e.Property(w => w.RawPayload).HasColumnType("nvarchar(max)");
             e.Property(w => w.Error).HasMaxLength(500);
+            e.Property(w => w.PayloadHash).HasMaxLength(64);
+
+            // Consultado a cada webhook recebido para detectar reentrega.
+            e.HasIndex(w => new { w.TenantId, w.PayloadHash });
         });
 
         modelBuilder.Entity<MessageTemplate>(e =>
@@ -103,8 +107,10 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
             e.HasOne(m => m.Instance)
              .WithMany()
+             // Remover um numero nao pode travar por causa do historico: a mensagem
+             // sobrevive e apenas perde o vinculo com a instancia que a enviou.
              .HasForeignKey(m => m.InstanceId)
-             .OnDelete(DeleteBehavior.Restrict);
+             .OnDelete(DeleteBehavior.SetNull);
 
             // Apagar um cliente não pode apagar nem travar o histórico de mensagens:
             // a mensagem sobrevive, apenas perde o vínculo.

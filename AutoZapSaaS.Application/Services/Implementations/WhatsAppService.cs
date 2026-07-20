@@ -135,6 +135,15 @@ public class WhatsAppService : IWhatsAppService
 
         foreach (var msg in pending)
         {
+            // O numero que originou a mensagem pode ter sido removido enquanto ela
+            // esperava na fila. Sem instancia nao ha por onde enviar.
+            if (msg.Instance is null)
+            {
+                msg.MarkFailed("O número de WhatsApp usado por esta mensagem foi removido.");
+                _context.WhatsAppMessages.Update(msg);
+                continue;
+            }
+
             try
             {
                 var success = await _evolutionClient.SendMessageAsync(
